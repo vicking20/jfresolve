@@ -30,8 +30,8 @@ A Jellyfin plugin that integrates external streaming sources (Stremio addons) fr
 
 ## Versions
 
-### **jfresolve-11.0** (Current)
-- **Target**: Jellyfin 11.0+
+### **jfresolve-10.11** (Current)
+- **Target**: Jellyfin 10.11+
 - **Framework**: .NET 9.0
 - **Status**: Active development
 - **Latest Release**: See [Releases](../../releases)
@@ -69,12 +69,12 @@ A Jellyfin plugin that integrates external streaming sources (Stremio addons) fr
 ### Build Steps
 
 ```bash
-cd jfresolve-11.0
+cd jfresolve-10.11
 dotnet build -c Release
 ```
 
 Compiled DLL will be at:
-- 11.0: `jfresolve-11.0/bin/Release/net9.0/Jfresolve.dll`
+- `jfresolve-10.11/bin/Release/net9.0/Jfresolve.dll`
 
 ## Architecture
 
@@ -158,6 +158,7 @@ Contributions are welcome! Please:
 ## Acknowledgments
 
 - This plugin was only possible after going through [Gelato](https://github.com/lostb1t/Gelato). Big thanks to [lostb1t](https://github.com/lostb1t)
+- My old project [jf-resolve](https://github.com/vicking20/jf-resolve)
 - Jellyfin project for the media server
 - TMDB for metadata
 - Stremio for addon ecosystem
