@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/vicking20/jfresolve/main/jfresolve.png" alt="Jfresolve Logo" width="128" height="128">
+  <img src="https://raw.githubusercontent.com/vicking20/jfresolve/refs/heads/main/jfresolve.png" alt="Jfresolve Logo" width="128" height="128">
 </p>
 
 <h1 align="center">Jfresolve - Jellyfin Plugin</h1>
