@@ -10,7 +10,7 @@
     "versions": [
       {
         "version": "1.0.0.0",
-        "changelog": "Jfresolve plugin for jellyfin version 11.0.x.x - Added configurable library population scheduling, fixed plugin disposal on uninstall, improved version segmentation",
+        "changelog": "Jfresolve plugin for jellyfin version 10.11.x.x - Added configurable library population scheduling, fixed plugin disposal on uninstall, improved version segmentation",
         "sourceUrl": "https://github.com/vicking20/jfresolve/releases/download/10.11.1.1.0.0/jfresolve_10.11_11.0.0.0.zip",
         "checksum": "b9c7d8b99c99cc48240f91d5044741265e6f5796016ada1d8b603460d635a410",
         "targetAbi": "10.11.0.0",
