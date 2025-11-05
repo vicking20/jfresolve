@@ -57,7 +57,9 @@ A Jellyfin plugin that integrates external streaming sources (Stremio addons) fr
 - **TMDb API Key**: Get your free API key at [themoviedb.org/settings/api](https://www.themoviedb.org/settings/api)
 - **Jellyfin Base URL**: Your Jellyfin server URL (e.g., `http://127.0.0.1:8096`)
 - **Addon Link**: Stremio addon manifest URL (required for streaming)
-- **Debrid Account**: Tested with Real Debrid, I cant guarantee others, but you can try. Debrid provider is configured in your stremio plugin settings.
+**Sample Add-on url** ```stremio://torrentio.strem.fun/providers=yts,eztv,rarbg,1337x,thepiratebay,kickasstorrents,torrentgalaxy,magnetdl,horriblesubs,nyaasi,tokyotosho,anidex|qualityfilter=brremux,scr,cam|limit=1|debridoptions=nodownloadlinks,nocatalog|realdebrid=(input your real debrid key here with no brackets)/manifest.json```
+The sample add-on url can be used in your configuration, replace **(input your real debrid key here with no brackets)** with your real debrid key and paste into the plugin settings Addon link (Manifest JSON URL).
+- **Debrid Account**: Tested with Real Debrid, other providers can be tested. Debrid provider is configured in your stremio plugin settings.
 - **Library Paths**: At least one library path (Movies or Shows)
 
 ### Optional Settings
