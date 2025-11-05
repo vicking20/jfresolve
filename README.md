@@ -184,4 +184,8 @@ Contributions are welcome! Please:
 - You can reduce search results in configuration to make it slightly faster.
 - Internet speed needs to be decent enough to handle multiple search requests.
 
+## Disclaimer
+
+This project is intended for **educational purposes only**. It was developed to learn more about the c# language and understand how to inject custom results when a user does a search in Jellyfin using Dto's. While it was a fun experiment, it is provided as-is, and others are welcome to modify or use it for their own educational purposes at their risk.
+
 ---
