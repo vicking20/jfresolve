@@ -28,6 +28,15 @@ A Jellyfin plugin that integrates external streaming sources (Stremio addons) fr
 - ⏰ **Scheduled Population**: Daily automatic library population at 3 AM UTC
 - 🔧 **Flexible Configuration**: Comprehensive settings for customization
 
+
+## Benefits
+
+- **Efficient Library Management**: Simplify your media library with automated population and external search results
+- **Enhanced User Experience**: Discover new content directly through your Jellyfin ui
+- **Customizable Settings**: Tailor your plugin to your preferences with flexible configuration options
+- **Less dependency on the arr stack**: You can use jfresolve now without jellyseerr, radarr, sonarr, prowlarr,etc. Just your tmdb api key, debrid authentication, and some stremio streaming addon manifest link
+- **Smaller file footprint**: Media is not stored directly, media is streamed from the source, you dont need to have tons of storage to have a large library
+
 ## Versions
 
 ### **jfresolve-10.11** (Current)
