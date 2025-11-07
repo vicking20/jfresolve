@@ -12,9 +12,9 @@
         "version": "1.0.0.1",
         "changelog": "Library refresh after search added",
         "sourceUrl": "https://github.com/vicking20/jfresolve/releases/download/10.11.1.0.0.1/jfresolve.zip",
-        "checksum": "9044cbf10b2197f4f391bb4534842406",
+        "checksum": "4386fe0123ca8addc2f98c4f21dd44b6",
         "targetAbi": "10.11.0.0",
-        "timestamp": "2025-11-04T12:04:00Z"
+        "timestamp": "2025-11-07T12:04:00Z"
       },
       {
         "version": "1.0.0.0",
