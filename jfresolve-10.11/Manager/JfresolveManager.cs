@@ -103,6 +103,7 @@ namespace Jfresolve
 
         /// <summary>
         /// Populates the library immediately.
+        /// If EnableAutoScanAfterPopulation is true, triggers a library scan after population.
         /// </summary>
         public async Task PopulateLibraryAsync()
         {
@@ -123,15 +124,23 @@ namespace Jfresolve
                 using var populator = new JfResolvePopulator(_config, _logger);
                 await populator.PopulateLibrariesAsync().ConfigureAwait(false);
 
-                // Trigger library refresh after population so Jellyfin immediately discovers new STRM files
-                // This prevents users from having to wait for scheduled library scans
-                try
+                // Only trigger library refresh if explicitly enabled in configuration
+                // This allows users on slower devices to disable automatic scanning
+                if (_config.EnableAutoScanAfterPopulation)
                 {
-                    await TriggerLibraryRefreshAsync().ConfigureAwait(false);
+                    try
+                    {
+                        _logger.LogInformation("[MANAGER] EnableAutoScanAfterPopulation is true, triggering library refresh");
+                        await TriggerLibraryRefreshAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "[MANAGER] Library refresh after population failed, but continuing");
+                    }
                 }
-                catch (Exception ex)
+                else
                 {
-                    _logger.LogWarning(ex, "[MANAGER] Library refresh after population failed, but continuing");
+                    _logger.LogInformation("[MANAGER] EnableAutoScanAfterPopulation is false, skipping library refresh (STRM files will be discovered on next scheduled scan)");
                 }
             }
             catch (Exception ex)

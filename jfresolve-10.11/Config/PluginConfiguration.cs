@@ -140,5 +140,13 @@ namespace Jfresolve.Configuration
         /// Default: 3 (3 AM UTC).
         /// </summary>
         public int LibraryPopulationHour { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether to trigger a library scan after manual population.
+        /// When enabled, Jellyfin will scan the library folders to discover newly created STRM files.
+        /// When disabled, items are added directly to the database without scanning.
+        /// Default: false (disabled for better performance on slower devices).
+        /// </summary>
+        public bool EnableAutoScanAfterPopulation { get; set; } = false;
     }
 }

@@ -68,6 +68,8 @@ namespace Jfresolve
 
         /// <summary>
         /// Entry point: populate all configured libraries if enabled.
+        /// Note: Library scanning is handled by the caller (JfresolveManager).
+        /// This method only creates STRM files without triggering any Jellyfin refresh.
         /// </summary>
         /// <returns>A task representing the asynchronous operation.</returns>
         public async Task PopulateLibrariesAsync()
@@ -94,7 +96,7 @@ namespace Jfresolve
                     await PopulateShowsAsync().ConfigureAwait(false);
                 }
 
-                _logger.LogInformation("[POPULATE] Library population completed successfully");
+                _logger.LogInformation("[POPULATE] Library population completed successfully (without triggering library scan)");
             }
             catch (Exception ex)
             {

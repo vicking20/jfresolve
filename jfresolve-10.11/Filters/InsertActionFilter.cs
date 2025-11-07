@@ -13,8 +13,10 @@ using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Entities;
+using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Querying;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
@@ -39,6 +41,7 @@ namespace Jfresolve.Filters
         private readonly ILibraryManager _libraryManager;
         private readonly IDtoService _dtoService;
         private readonly StrmFileGenerator _strmGenerator;
+        private readonly IFileSystem _fileSystem;
 
         public int Order => 1;
 
@@ -47,13 +50,15 @@ namespace Jfresolve.Filters
             JfresolveProvider provider,
             ILibraryManager libraryManager,
             IDtoService dtoService,
-            StrmFileGenerator strmGenerator)
+            StrmFileGenerator strmGenerator,
+            IFileSystem fileSystem)
         {
             _logger = logger;
             _provider = provider;
             _libraryManager = libraryManager;
             _dtoService = dtoService;
             _strmGenerator = strmGenerator;
+            _fileSystem = fileSystem;
         }
 
         public async Task OnActionExecutionAsync(ActionExecutingContext ctx, ActionExecutionDelegate next)
@@ -403,33 +408,62 @@ namespace Jfresolve.Filters
         }
 
         /// <summary>
-        /// Triggers a library refresh for a specific folder containing series STRM files.
-        /// This allows Jellyfin to discover newly added episode STRM files.
+        /// Triggers a targeted library refresh for a specific folder containing STRM files.
+        /// This is a partial/lightweight refresh that only scans the specified folder,
+        /// not the entire library. Much better for slow devices than ValidateMediaLibrary.
         /// </summary>
         private async Task TriggerLibraryRefreshAsync(string folderPath)
         {
             try
             {
-                _logger.LogInformation("[InsertActionFilter] Triggering library refresh for: {Path}", folderPath);
+                _logger.LogInformation("[InsertActionFilter] Triggering targeted folder refresh for: {Path}", folderPath);
 
-                // Use the library manager to validate/refresh the folder
-                // This will cause Jellyfin to scan for new STRM files
+                // Try to find the specific folder by path
+                var targetFolder = _libraryManager.FindByPath(folderPath, isFolder: true);
+
+                if (targetFolder == null)
+                {
+                    _logger.LogWarning("[InsertActionFilter] Could not find folder by path: {Path}", folderPath);
+                    return;
+                }
+
+                // Cast to Folder to access ValidateChildren method
+                if (targetFolder is not Folder folder)
+                {
+                    _logger.LogWarning("[InsertActionFilter] Found item is not a folder: {Path}", folderPath);
+                    return;
+                }
+
+                _logger.LogInformation("[InsertActionFilter] Found folder, starting validation: {Name} ({Path})", folder.Name, folder.Path);
+
+                // Create metadata refresh options for non-intrusive validation
+                var metadataOptions = new MetadataRefreshOptions(new DirectoryService(_fileSystem))
+                {
+                    ReplaceAllImages = false,
+                    ReplaceAllMetadata = false,
+                    ImageRefreshMode = MetadataRefreshMode.ValidationOnly,
+                    MetadataRefreshMode = MetadataRefreshMode.ValidationOnly
+                };
+
+                // Validate children of the folder (this only scans that specific folder)
+                // recursive=true will scan all subfolders, but only within this folder, not the entire library
                 using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(30));
                 var progress = new Progress<double>(percent =>
                 {
                     if (percent % 25 == 0) // Log every 25%
                     {
-                        _logger.LogDebug("[InsertActionFilter] Library refresh progress: {Percent}%", (int)(percent * 100));
+                        _logger.LogDebug("[InsertActionFilter] Folder validation progress: {Percent}%", (int)(percent * 100));
                     }
                 });
 
-                await Task.Run(() => _libraryManager.ValidateMediaLibrary(progress, cts.Token)).ConfigureAwait(false);
+                await folder.ValidateChildren(progress, metadataOptions, recursive: true, allowRemoveRoot: false, cancellationToken: cts.Token)
+                    .ConfigureAwait(false);
 
-                _logger.LogInformation("[InsertActionFilter] Library refresh triggered successfully");
+                _logger.LogInformation("[InsertActionFilter] Targeted folder refresh completed successfully");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[InsertActionFilter] Error triggering library refresh for: {Path}", folderPath);
+                _logger.LogError(ex, "[InsertActionFilter] Error triggering folder refresh for: {Path}", folderPath);
                 // Don't throw - this is a non-critical operation
             }
         }

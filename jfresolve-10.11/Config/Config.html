@@ -314,6 +314,26 @@
                                     during library population.
                                 </div>
                             </div>
+
+                            <div class="checkboxContainer">
+                                <label>
+                                    <input
+                                        type="checkbox"
+                                        id="EnableAutoScanAfterPopulation"
+                                        is="emby-checkbox"
+                                    />
+                                    <span>Auto Scan After Population</span>
+                                </label>
+                            </div>
+                            <div class="fieldDescription">
+                                When enabled, Jellyfin will scan the library
+                                folders after population to immediately discover
+                                newly created STRM files. Disable this on slower
+                                devices to avoid I/O overhead. Files will be
+                                discovered on the next scheduled library scan if
+                                disabled.
+                            </div>
+
                             <button
                                 id="PopulateLibraryBtn"
                                 type="button"
@@ -469,6 +489,10 @@
                                     ? config.ItemsPerRequest
                                     : 100;
                             document.querySelector(
+                                "#EnableAutoScanAfterPopulation",
+                            ).checked =
+                                config.EnableAutoScanAfterPopulation || false;
+                            document.querySelector(
                                 "#EnableFFmpegCustomization",
                             ).checked =
                                 config.EnableFFmpegCustomization != null
@@ -578,6 +602,10 @@
                                         .value,
                                     10,
                                 ) || 100;
+                            config.EnableAutoScanAfterPopulation =
+                                document.querySelector(
+                                    "#EnableAutoScanAfterPopulation",
+                                ).checked;
                             config.EnableFFmpegCustomization =
                                 document.querySelector(
                                     "#EnableFFmpegCustomization",

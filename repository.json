@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/vicking20/jfresolve/main/jfresolve.png",
     "versions": [
       {
+        "version": "1.0.0.2",
+        "changelog": "Targeted library refresh after search added",
+        "sourceUrl": "https://github.com/vicking20/jfresolve/releases/download/10.11.1.0.0.2/jfresolve.zip",
+        "checksum": "3214d01565cd8e977cb28d07b5b5b62a",
+        "targetAbi": "10.11.0.0",
+        "timestamp": "2025-11-07T12:10:00Z"
+      },
+      {
         "version": "1.0.0.1",
         "changelog": "Library refresh after search added",
         "sourceUrl": "https://github.com/vicking20/jfresolve/releases/download/10.11.1.0.0.1/jfresolve.zip",
