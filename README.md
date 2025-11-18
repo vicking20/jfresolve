@@ -49,7 +49,7 @@ A Jellyfin plugin that integrates external streaming sources (Stremio addons) fr
 
 1. Add the link to the plugin to your Jellyfin server's plugin repository: `https://raw.githubusercontent.com/vicking20/jfresolve/refs/heads/main/repository.json`
 2. Install and configure your plugin. Tested with Torrentio, TorrentioRD, Aiostreams, MediaFusion. Your plugin needs to have your real debrid key setup.
-3. During the first time configuration or after adding a new library path, after saving your settings, you may need to do a library scan and Restart your Jellyfin server for changes to take effect.
+3. During the first time configuration or after adding a new library path, after saving your settings, you should restart Jellyfin, then trigger a library refresh for changes to take effect.
 ## Configuration
 
 ### Required Settings
