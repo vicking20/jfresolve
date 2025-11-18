@@ -1,152 +1,113 @@
-// pluginconfiguration.cs
 using System;
 using MediaBrowser.Model.Plugins;
 
-namespace Jfresolve.Configuration
+namespace Jfresolve.Configuration;
+
+public class PluginConfiguration : BasePluginConfiguration
+{
+    public bool EnableSearch { get; set; } = true;
+    public string TmdbApiKey { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Jellyfin server URL (e.g., http://localhost:8096)
+    /// Used to construct API controller URLs for stream resolution
+    /// </summary>
+    public string JellyfinServerUrl { get; set; } = "http://localhost:8096";
+
+    /// <summary>
+    /// Preferred stream quality when multiple options are available
+    /// Options: Auto, 4K, 1440p, 1080p, 720p, 480p
+    /// Auto will select the highest quality available
+    /// </summary>
+    public string PreferredQuality { get; set; } = "Auto";
+
+    /// <summary>
+    /// Stremio addon manifest URL (e.g., stremio://11111112222222333333344444445555/manifest.json)
+    /// Will be normalized to https:// format automatically
+    /// </summary>
+    public string AddonManifestUrl { get; set; } = string.Empty;
+
+    // Library Folder Paths (like Gelato)
+    /// <summary>
+    /// Path to the movie library folder (e.g., /data/movies)
+    /// This should be an existing Jellyfin library folder
+    /// </summary>
+    public string MoviePath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Path to the TV series library folder (e.g., /data/tvseries)
+    /// This should be an existing Jellyfin library folder
+    /// </summary>
+    public string SeriesPath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Enable separate anime folder
+    /// When enabled, anime shows (TMDB genre ID 16) will be added to the anime folder instead of the main series folder
+    /// </summary>
+    public bool EnableAnimeFolder { get; set; } = false;
+
+    /// <summary>
+    /// Path to the anime library folder (e.g., /data/anime)
+    /// Only used when EnableAnimeFolder is true
+    /// </summary>
+    public string AnimePath { get; set; } = string.Empty;
+
+    // TMDB Settings
+    public bool IncludeAdult { get; set; } = false;
+    public bool FilterUnreleased { get; set; } = true;
+    public int UnreleasedBufferDays { get; set; } = 7;
+    public int SearchResultLimit { get; set; } = 15;
+
+    // Auto Library Population Settings
+    /// <summary>
+    /// Enable automatic library population with trending/popular content
+    /// </summary>
+    public bool EnableAutoPopulation { get; set; } = false;
+
+    /// <summary>
+    /// Source for library population content
+    /// </summary>
+    public PopulationSource PopulationSource { get; set; } = PopulationSource.TMDB;
+
+    /// <summary>
+    /// Maximum number of items to add per population run
+    /// </summary>
+    public int PopulationResultLimit { get; set; } = 20;
+
+    /// <summary>
+    /// Last time library population was run
+    /// </summary>
+    public DateTime? LastPopulationRun { get; set; } = null;
+
+    // FFmpeg Settings (Gelato pattern)
+    /// <summary>
+    /// Enable custom FFmpeg settings
+    /// When disabled, Jellyfin's default FFmpeg settings will be used
+    /// </summary>
+    public bool EnableCustomFFmpegSettings { get; set; } = false;
+
+    /// <summary>
+    /// FFmpeg analyzeduration parameter (e.g., "5M")
+    /// Determines how much data is analyzed to find stream information
+    /// Only used when EnableCustomFFmpegSettings is true
+    /// </summary>
+    public string FFmpegAnalyzeDuration { get; set; } = "5M";
+
+    /// <summary>
+    /// FFmpeg probesize parameter (e.g., "40M")
+    /// Determines how much data is probed before determining stream characteristics
+    /// Only used when EnableCustomFFmpegSettings is true
+    /// </summary>
+    public string FFmpegProbeSize { get; set; } = "40M";
+}
+
+/// <summary>
+/// Content source for library population
+/// </summary>
+public enum PopulationSource
 {
     /// <summary>
-    /// Plugin configuration.
+    /// Use TMDB trending/popular content
     /// </summary>
-    public class PluginConfiguration : BasePluginConfiguration
-    {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="PluginConfiguration"/> class.
-        /// </summary>
-        public PluginConfiguration()
-        {
-            TmdbApiKey = string.Empty;
-            MoviesLibraryPath = "/data/movies";
-            ShowsLibraryPath = "/data/tvshows";
-            AnimeLibraryPath = string.Empty;
-            JellyfinBaseUrl = "http://127.0.0.1:8096";
-            AddonManifestUrl = string.Empty;
-            SearchNumber = 3;
-            IncludeAdult = false;
-            IncludeUnreleased = false;
-            IncludeSpecials = false;
-            // New defaults
-            EnableExternalResults = true;
-            EnableMixed = false;
-            UnreleasedBufferDays = 30;
-            EnableLibraryPopulation = true;
-            FFmpegProbeSize = "40M";
-            FFmpegAnalyzeDuration = "5M";
-            ItemsPerRequest = 100;
-            LibraryPopulationHour = 3;
-        }
-
-        /// <summary>
-        /// Gets or Sets TMDb API key for fetching metadata.
-        /// </summary>
-        public string TmdbApiKey { get; set; }
-
-        /// <summary>
-        /// Gets or Sets Movies library path for plugin-populated items.
-        /// </summary>
-        public string MoviesLibraryPath { get; set; }
-
-        /// <summary>
-        /// Gets or Sets number of search results for each movies and shows.
-        /// </summary>
-        public int SearchNumber { get; set; }
-
-        /// <summary>
-        /// Gets or Sets TV Shows library path for plugin-populated items.
-        /// </summary>
-        public string ShowsLibraryPath { get; set; }
-
-        /// <summary>
-        /// Gets or Sets Optional Anime library path.
-        /// </summary>
-        public string AnimeLibraryPath { get; set; }
-
-        /// <summary>
-        /// Gets or Sets addon manifest JSON URL.
-        /// </summary>
-        public string AddonManifestUrl { get; set; }
-
-        /// <summary>
-        /// Gets or sets the Jellyfin base URL (including protocol and port).
-        /// Example: http://127.0.0.1:8096.
-        /// </summary>
-        public string JellyfinBaseUrl { get; set; } = "http://127.0.0.1:8096";
-
-        /// <summary>
-        /// Gets or sets a value indicating whether adult content is included.
-        /// </summary>
-        public bool IncludeAdult { get; set; }
-
-        /// <summary>
-        /// Gets or sets a value indicating whether unreleased titles are included.
-        /// </summary>
-        public bool IncludeUnreleased { get; set; }
-
-        /// <summary>
-        /// Gets or sets a value indicating whether specials (Season 0) are included.
-        /// </summary>
-        public bool IncludeSpecials { get; set; }
-
-        /// <summary>
-        /// Gets or Sets last population date and time.
-        /// </summary>
-        public DateTime? LastPopulationUtc { get; set; }
-
-        // -----------------
-        // New configuration
-        // -----------------
-
-        /// <summary>
-        /// If true, search can include external results (e.g., addon sources).
-        /// </summary>
-        public bool EnableExternalResults { get; set; }
-
-        /// <summary>
-        /// If true, merge local files with external alternates (mixed mode).
-        /// </summary>
-        public bool EnableMixed { get; set; }
-
-        /// <summary>
-        /// Additional buffer days when deciding if unreleased movies should be shown.
-        /// </summary>
-        public int UnreleasedBufferDays { get; set; }
-
-        /// <summary>
-        /// FFmpeg probe size (e.g., 40M) for better remote stream detection.
-        /// </summary>
-        public string FFmpegProbeSize { get; set; }
-
-        /// <summary>
-        /// FFmpeg analyze duration (e.g., 5M) for better remote stream detection.
-        /// </summary>
-        public string FFmpegAnalyzeDuration { get; set; }
-
-        /// <summary>
-        /// Enable custom FFmpeg configuration. If false, uses Jellyfin defaults.
-        /// </summary>
-        public bool EnableFFmpegCustomization { get; set; } = true;
-
-        /// <summary>
-        /// Master switch to enable/disable any automated library population logic.
-        /// </summary>
-        public bool EnableLibraryPopulation { get; set; }
-
-        /// <summary>
-        /// Max number of items to fetch per request/batch when populating.
-        /// </summary>
-        public int ItemsPerRequest { get; set; }
-
-        /// <summary>
-        /// Gets or sets the hour (0-23 UTC) when daily library population should run.
-        /// Default: 3 (3 AM UTC).
-        /// </summary>
-        public int LibraryPopulationHour { get; set; }
-
-        /// <summary>
-        /// Gets or sets a value indicating whether to trigger a library scan after manual population.
-        /// When enabled, Jellyfin will scan the library folders to discover newly created STRM files.
-        /// When disabled, items are added directly to the database without scanning.
-        /// Default: false (disabled for better performance on slower devices).
-        /// </summary>
-        public bool EnableAutoScanAfterPopulation { get; set; } = false;
-    }
+    TMDB = 0
 }

@@ -84,3 +84,6 @@ launchSettings.json
 
 # Config overrides (for local testing)
 *.config.local
+
+# Documentation
+PLUGIN_DOCUMENTATION.md

@@ -2,418 +2,499 @@
 <html lang="en">
     <head>
         <meta charset="utf-8" />
-        <title>JF Resolve</title>
+        <title>Jfresolve Configuration</title>
     </head>
     <body>
         <div
             id="JfresolveConfigPage"
             data-role="page"
             class="page type-interior pluginConfigurationPage"
-            data-require="emby-input,emby-button"
+            data-require="emby-input,emby-button,emby-checkbox"
         >
             <div data-role="content">
                 <div class="content-primary">
                     <form id="JfresolveConfigForm">
-                        <!-- TMDb API Key -->
-                        <div class="inputContainer">
-                            <label
-                                class="inputLabel inputLabelUnfocused"
-                                for="TmdbApiKey"
-                                >TMDb API Key</label
-                            >
-                            <input
-                                id="TmdbApiKey"
-                                name="TmdbApiKey"
-                                type="text"
-                                is="emby-input"
-                            />
-                            <div class="fieldDescription">
-                                Your personal TMDb API key is required to search
-                                for movies and TV shows. Without this, the
-                                plugin cannot function. Get one free at
-                                <a
-                                    href="https://www.themoviedb.org/settings/api"
-                                    target="_blank"
-                                    >themoviedb.org/settings/api</a
-                                >
-                            </div>
-                        </div>
-
-                        <div class="inputContainer">
-                            <label
-                                class="inputLabel inputLabelUnfocused"
-                                for="SearchNumber"
-                                >Search Results</label
-                            >
-                            <input
-                                id="SearchNumber"
-                                name="SearchNumber"
-                                type="number"
-                                min="1"
-                                max="20"
-                                is="emby-input"
-                            />
-                            <div class="fieldDescription">
-                                Maximum number of search results to show for
-                                each search.
-                            </div>
-                        </div>
-
-                        <div class="checkboxContainer">
-                            <label>
-                                <input
-                                    type="checkbox"
-                                    id="EnableExternalResults"
-                                    is="emby-checkbox"
-                                />
-                                <span>Enable External Search Results</span>
-                            </label>
-                        </div>
-                        <div class="checkboxContainer">
-                            <label>
-                                <input
-                                    type="checkbox"
-                                    id="EnableMixed"
-                                    is="emby-checkbox"
-                                />
-                                <span
-                                    >Show Local Files With External Alternatives
-                                    (Mixed)</span
-                                >
-                            </label>
-                        </div>
-                        <div class="fieldDescription">
-                            Default to local library if the media already
-                            exists. If not, then show external alternatives.
-                        </div>
-
-                        <div class="inputContainer">
-                            <label
-                                class="inputLabel inputLabelUnfocused"
-                                for="JellyfinBaseUrl"
-                                >Jellyfin Base URL</label
-                            >
-                            <input
-                                id="JellyfinBaseUrl"
-                                name="JellyfinBaseUrl"
-                                type="text"
-                                is="emby-input"
-                            />
-                            <div class="fieldDescription">
-                                Examples:
-                                <code>http://192.168.1.100:8096</code>, or
-                                <code>https://my-jellyfin.example.com</code>.
-                                Include http or https depending on protocol.
-                            </div>
-                        </div>
-
-                        <div class="inputContainer">
-                            <label
-                                class="inputLabel inputLabelUnfocused"
-                                for="AddonManifestUrl"
-                                >Addon Link (Manifest JSON URL)</label
-                            >
-                            <input
-                                id="AddonManifestUrl"
-                                name="AddonManifestUrl"
-                                type="text"
-                                is="emby-input"
-                            />
-                            <div class="fieldDescription">
-                                URL to your addon's manifest.json file. Example:
-                                <code
-                                    >stremio://torrentio.strem.fun/manifest.json</code
-                                >
-                                Required for streams to work. Only stremio
-                                streaming addons with Debrid are supported.
-                            </div>
-                        </div>
-
-                        <div class="checkboxContainer">
-                            <label>
-                                <input
-                                    type="checkbox"
-                                    id="IncludeAdult"
-                                    is="emby-checkbox"
-                                />
-                                <span>Include Adult Content</span>
-                            </label>
-                        </div>
-
-                        <div class="checkboxContainer">
-                            <label>
-                                <input
-                                    type="checkbox"
-                                    id="IncludeUnreleased"
-                                    is="emby-checkbox"
-                                />
-                                <span>Include Unreleased Titles</span>
-                            </label>
-                        </div>
-
-                        <div class="inputContainer">
-                            <label
-                                class="inputLabel inputLabelUnfocused"
-                                for="UnreleasedBufferDays"
-                                >Release Buffer Days</label
-                            >
-                            <input
-                                id="UnreleasedBufferDays"
-                                name="UnreleasedBufferDays"
-                                type="number"
-                                min="0"
-                                max="365"
-                                is="emby-input"
-                            />
-                            <div class="fieldDescription">
-                                Number of days to wait after a movie's official
-                                release date before showing it.
-                            </div>
-                        </div>
-
-                        <div class="checkboxContainer">
-                            <label>
-                                <input
-                                    type="checkbox"
-                                    id="IncludeSpecials"
-                                    is="emby-checkbox"
-                                />
-                                <span>Include Specials (Season 0)</span>
-                            </label>
-                        </div>
-
-                        <hr />
-                        <h3>Library Paths</h3>
-
-                        <!-- Movies -->
-                        <div class="inputContainer">
-                            <label
-                                class="inputLabel inputLabelUnfocused"
-                                for="MoviesLibraryPath"
-                                >Movies Library Path</label
-                            >
-                            <input
-                                id="MoviesLibraryPath"
-                                name="MoviesLibraryPath"
-                                type="text"
-                                is="emby-input"
-                            />
-                            <div class="fieldDescription">
-                                Location where movies are. This should be a
-                                folder that's already added as a library in
-                                Jellyfin. Example:
-                                <code>/mnt/media/movies</code> or
-                                <code>C:\Videos\Movies</code>. At least one path
-                                is required for library population to work.
-                            </div>
-                        </div>
-
-                        <!-- TV Shows -->
-                        <div class="inputContainer">
-                            <label
-                                class="inputLabel inputLabelUnfocused"
-                                for="ShowsLibraryPath"
-                                >TV Shows Library Path</label
-                            >
-                            <input
-                                id="ShowsLibraryPath"
-                                name="ShowsLibraryPath"
-                                type="text"
-                                is="emby-input"
-                            />
-                        </div>
-
-                        <!-- Anime (optional) -->
-                        <div class="inputContainer">
-                            <label
-                                class="inputLabel inputLabelUnfocused"
-                                for="AnimeLibraryPath"
-                                >Anime Library Path (Optional)</label
-                            >
-                            <input
-                                id="AnimeLibraryPath"
-                                name="AnimeLibraryPath"
-                                type="text"
-                                is="emby-input"
-                            />
-                            <div class="fieldDescription">
-                                Optional. If set, anime titles will be populated
-                                here instead of the regular TV shows folder.
-                                Leave empty to disable. If enabled, it must be a
-                                mixed library for movies and shows in Jellyfin.
-                            </div>
-                        </div>
-
-                        <!-- Populate Library Button -->
                         <div
-                            class="inputContainer"
-                            style="
-                                margin-top: 20px;
-                                padding-top: 20px;
-                                border-top: 1px solid #333;
-                            "
+                            class="verticalSection verticalSection-extrabottompadding"
                         >
-                            <label class="inputLabel">Library Population</label>
+                            <div
+                                class="sectionTitleContainer flex align-items-center"
+                            >
+                                <h2 class="sectionTitle">
+                                    Jfresolve Configuration
+                                </h2>
+                            </div>
+
+                            <h3 class="sectionTitle">General Settings</h3>
+
+                            <div class="inputContainer">
+                                <label
+                                    class="inputLabel inputLabelUnfocused"
+                                    for="JellyfinServerUrl"
+                                    >Jellyfin Server URL</label
+                                >
+                                <input
+                                    type="text"
+                                    id="JellyfinServerUrl"
+                                    is="emby-input"
+                                    class="emby-input"
+                                    placeholder="http://localhost:8096"
+                                />
+                                <div class="fieldDescription">
+                                    Your Jellyfin server URL (e.g.,
+                                    http://localhost:8096 or
+                                    http://192.168.1.100:8096). Used to
+                                    construct stream resolution URLs.
+                                </div>
+                            </div>
+
+                            <div
+                                class="checkboxContainer checkboxContainer-withDescription"
+                            >
+                                <label class="emby-checkbox-label">
+                                    <input
+                                        type="checkbox"
+                                        is="emby-checkbox"
+                                        id="EnableSearch"
+                                    />
+                                    <span>Enable Search Interception</span>
+                                </label>
+                                <div class="fieldDescription">
+                                    When enabled, search queries will return
+                                    virtual test items instead of library
+                                    content.
+                                </div>
+                            </div>
+
+                            <div class="inputContainer">
+                                <label
+                                    class="inputLabel inputLabelUnfocused"
+                                    for="AddonManifestUrl"
+                                    >Addon Manifest URL</label
+                                >
+                                <input
+                                    type="text"
+                                    id="AddonManifestUrl"
+                                    is="emby-input"
+                                    class="emby-input"
+                                    placeholder="stremio://11111112222222333333344444445555/manifest.json"
+                                />
+                                <div class="fieldDescription">
+                                    Stremio addon manifest URL for resolving
+                                    real streams. Format:
+                                    stremio://your-addon-id/manifest.json or
+                                    https://your-addon-url/manifest.json
+                                </div>
+                            </div>
+
+                            <div class="selectContainer">
+                                <label
+                                    class="selectLabel"
+                                    for="PreferredQuality"
+                                    >Preferred Stream Quality</label
+                                >
+                                <select
+                                    is="emby-select"
+                                    id="PreferredQuality"
+                                    class="emby-select-withcolor emby-select"
+                                >
+                                    <option value="Auto">
+                                        Auto (Highest Available)
+                                    </option>
+                                    <option value="4K">4K / 2160p</option>
+                                    <option value="1440p">1440p</option>
+                                    <option value="1080p">1080p</option>
+                                    <option value="720p">720p</option>
+                                    <option value="480p">480p</option>
+                                </select>
+                                <div class="fieldDescription">
+                                    Select preferred quality when multiple
+                                    stream options are available. Auto will
+                                    select the highest quality stream.
+                                </div>
+                            </div>
+
+                            <h3 class="sectionTitle">Library Folder Paths</h3>
+
+                            <div class="inputContainer">
+                                <label
+                                    class="inputLabel inputLabelUnfocused"
+                                    for="MoviePath"
+                                    >Movie Library Path</label
+                                >
+                                <input
+                                    type="text"
+                                    id="MoviePath"
+                                    is="emby-input"
+                                    class="emby-input"
+                                    placeholder="/data/movies"
+                                />
+                                <div class="fieldDescription">
+                                    Path to an existing Jellyfin movie library
+                                    folder (e.g., /data/movies). This folder
+                                    must already exist as a library in Jellyfin.
+                                    Virtual movie items will be added to this
+                                    library.
+                                </div>
+                            </div>
+
+                            <div class="inputContainer">
+                                <label
+                                    class="inputLabel inputLabelUnfocused"
+                                    for="SeriesPath"
+                                    >TV Series Library Path</label
+                                >
+                                <input
+                                    type="text"
+                                    id="SeriesPath"
+                                    is="emby-input"
+                                    class="emby-input"
+                                    placeholder="/data/tvseries"
+                                />
+                                <div class="fieldDescription">
+                                    Path to an existing Jellyfin TV series
+                                    library folder (e.g., /data/tvseries). This
+                                    folder must already exist as a library in
+                                    Jellyfin. Virtual TV show items will be
+                                    added to this library.
+                                </div>
+                            </div>
+
+                            <div
+                                class="checkboxContainer checkboxContainer-withDescription"
+                            >
+                                <label class="emby-checkbox-label">
+                                    <input
+                                        type="checkbox"
+                                        is="emby-checkbox"
+                                        id="EnableAnimeFolder"
+                                    />
+                                    <span>Enable Separate Anime Folder</span>
+                                </label>
+                                <div class="fieldDescription">
+                                    When enabled, anime shows (TMDB genre ID 16)
+                                    will be added to a separate anime folder
+                                    instead of the main series folder.
+                                </div>
+                            </div>
+
+                            <div class="inputContainer">
+                                <label
+                                    class="inputLabel inputLabelUnfocused"
+                                    for="AnimePath"
+                                    >Anime Library Path</label
+                                >
+                                <input
+                                    type="text"
+                                    id="AnimePath"
+                                    is="emby-input"
+                                    class="emby-input"
+                                    placeholder="/data/anime"
+                                />
+                                <div class="fieldDescription">
+                                    Path to an existing Jellyfin anime library
+                                    folder (e.g., /data/anime). Only used when
+                                    "Enable Separate Anime Folder" is checked.
+                                    This folder must already exist as a library
+                                    in Jellyfin.
+                                </div>
+                            </div>
+
+                            <h3 class="sectionTitle">TMDB Settings</h3>
+
+                            <div class="inputContainer">
+                                <label
+                                    class="inputLabel inputLabelUnfocused"
+                                    for="TmdbApiKey"
+                                    >TMDB API Key</label
+                                >
+                                <input
+                                    type="text"
+                                    id="TmdbApiKey"
+                                    is="emby-input"
+                                    class="emby-input"
+                                />
+                                <div class="fieldDescription">
+                                    Your TMDB API v3 key for fetching real
+                                    metadata. Get one at
+                                    https://www.themoviedb.org/settings/api
+                                </div>
+                            </div>
+
+                            <div class="inputContainer">
+                                <label
+                                    class="inputLabel inputLabelUnfocused"
+                                    for="SearchResultLimit"
+                                    >Search Result Limit</label
+                                >
+                                <input
+                                    type="number"
+                                    id="SearchResultLimit"
+                                    is="emby-input"
+                                    class="emby-input"
+                                    min="1"
+                                    max="100"
+                                />
+                                <div class="fieldDescription">
+                                    Maximum number of results to return from
+                                    TMDB searches. Default: 15.
+                                </div>
+                            </div>
+
+                            <div
+                                class="checkboxContainer checkboxContainer-withDescription"
+                            >
+                                <label class="emby-checkbox-label">
+                                    <input
+                                        type="checkbox"
+                                        is="emby-checkbox"
+                                        id="IncludeAdult"
+                                    />
+                                    <span>Include Adult Content</span>
+                                </label>
+                                <div class="fieldDescription">
+                                    When enabled, TMDB search results will
+                                    include adult content.
+                                </div>
+                            </div>
+
+                            <div
+                                class="checkboxContainer checkboxContainer-withDescription"
+                            >
+                                <label class="emby-checkbox-label">
+                                    <input
+                                        type="checkbox"
+                                        is="emby-checkbox"
+                                        id="FilterUnreleased"
+                                    />
+                                    <span>Filter Unreleased Content</span>
+                                </label>
+                                <div class="fieldDescription">
+                                    When enabled, hides movies/shows that
+                                    haven't been released yet (based on buffer
+                                    days).
+                                </div>
+                            </div>
+
+                            <div class="inputContainer">
+                                <label
+                                    class="inputLabel inputLabelUnfocused"
+                                    for="UnreleasedBufferDays"
+                                    >Unreleased Buffer Days</label
+                                >
+                                <input
+                                    type="number"
+                                    id="UnreleasedBufferDays"
+                                    is="emby-input"
+                                    class="emby-input"
+                                    min="0"
+                                    max="365"
+                                />
+                                <div class="fieldDescription">
+                                    Number of days before official release date
+                                    to consider content as "released". Default:
+                                    7 days.
+                                </div>
+                            </div>
+
+                            <h3 class="sectionTitle">
+                                Auto Library Population
+                            </h3>
+
                             <div
                                 class="fieldDescription"
-                                style="margin-bottom: 15px"
+                                style="
+                                    background-color: #1e2a3a;
+                                    padding: 15px;
+                                    border-radius: 5px;
+                                    margin-bottom: 20px;
+                                "
                             >
-                                Enable automatic library population. Plugin
-                                automatically fetches popular content from tmdb
-                                at 03:00AM UTC
-                            </div>
-                            <div class="checkboxContainer">
-                                <label>
-                                    <input
-                                        type="checkbox"
-                                        id="EnableLibraryPopulation"
-                                        is="emby-checkbox"
-                                    />
-                                    <span>Enable Library Population</span>
-                                </label>
+                                <strong>⚠️ Important:</strong> After enabling
+                                auto-population and saving your settings, you
+                                must configure the scheduled task trigger:<br />
+                                Go to
+                                <strong
+                                    >Dashboard → Scheduled Tasks → Populate
+                                    Jfresolve Library</strong
+                                >
+                                and add a trigger (e.g., daily at 3 AM).<br />
+                                The task will not run automatically without a
+                                trigger configured.
                             </div>
 
-                            <div class="inputContainer">
-                                <label
-                                    class="inputLabel inputLabelUnfocused"
-                                    for="LibraryPopulationHour"
-                                    >Library Population Time (UTC)</label
-                                >
-                                <input
-                                    id="LibraryPopulationHour"
-                                    name="LibraryPopulationHour"
-                                    type="number"
-                                    min="0"
-                                    max="23"
-                                    is="emby-input"
-                                />
+                            <div
+                                class="checkboxContainer checkboxContainer-withDescription"
+                            >
+                                <label class="emby-checkbox-label">
+                                    <input
+                                        type="checkbox"
+                                        is="emby-checkbox"
+                                        id="EnableAutoPopulation"
+                                    />
+                                    <span>Enable Auto Library Population</span>
+                                </label>
                                 <div class="fieldDescription">
-                                    Hour of the day (0-23) in UTC when library
-                                    population should run automatically. For
-                                    example, 3 means 3:00 AM UTC, 15 means 3:00
-                                    PM UTC.
+                                    Automatically populate your library with
+                                    trending/popular content from TMDB.
+                                    Configure the frequency via Scheduled Tasks.
+                                </div>
+                            </div>
+
+                            <div class="selectContainer">
+                                <label
+                                    class="selectLabel"
+                                    for="PopulationSource"
+                                    >Content Source</label
+                                >
+                                <select
+                                    is="emby-select"
+                                    id="PopulationSource"
+                                    class="emby-select-withcolor emby-select"
+                                >
+                                    <option value="0">
+                                        TMDB (Trending/Popular)
+                                    </option>
+                                </select>
+                                <div class="fieldDescription">
+                                    Source for discovering new content to add to
+                                    your library.
                                 </div>
                             </div>
 
                             <div class="inputContainer">
                                 <label
                                     class="inputLabel inputLabelUnfocused"
-                                    for="ItemsPerRequest"
-                                    >Items Per Request</label
+                                    for="PopulationResultLimit"
+                                    >Items Per Run</label
                                 >
                                 <input
-                                    id="ItemsPerRequest"
-                                    name="ItemsPerRequest"
                                     type="number"
+                                    id="PopulationResultLimit"
+                                    is="emby-input"
+                                    class="emby-input"
                                     min="1"
-                                    max="1000"
-                                    is="emby-input"
+                                    max="100"
                                 />
                                 <div class="fieldDescription">
-                                    How many items to fetch daily in each batch
-                                    during library population.
+                                    Maximum number of new items to add each time
+                                    the population task runs. Default: 20.
                                 </div>
                             </div>
 
-                            <div class="checkboxContainer">
-                                <label>
+                            <div
+                                class="fieldDescription"
+                                id="lastPopulationRunDisplay"
+                                style="font-style: italic"
+                            >
+                                Last Run: Never
+                            </div>
+
+                            <h3 class="sectionTitle">FFmpeg Settings</h3>
+
+                            <div
+                                class="checkboxContainer checkboxContainer-withDescription"
+                            >
+                                <label class="emby-checkbox-label">
                                     <input
                                         type="checkbox"
-                                        id="EnableAutoScanAfterPopulation"
                                         is="emby-checkbox"
+                                        id="EnableCustomFFmpegSettings"
                                     />
-                                    <span>Auto Scan After Population</span>
+                                    <span>Enable Custom FFmpeg Settings</span>
                                 </label>
-                            </div>
-                            <div class="fieldDescription">
-                                When enabled, Jellyfin will scan the library
-                                folders after population to immediately discover
-                                newly created STRM files. Disable this on slower
-                                devices to avoid I/O overhead. Files will be
-                                discovered on the next scheduled library scan if
-                                disabled.
-                            </div>
-
-                            <button
-                                id="PopulateLibraryBtn"
-                                type="button"
-                                is="emby-button"
-                                class="raised button-submit block emby-button"
-                            >
-                                <span>Populate Library Now</span>
-                            </button>
-                            <div class="fieldDescription">
-                                Click to manually start library population
-                                immediately.
-                            </div>
-                        </div>
-
-                        <hr />
-                        <h3>Playback Tuning</h3>
-
-                        <div class="checkboxContainer">
-                            <label>
-                                <input
-                                    type="checkbox"
-                                    id="EnableFFmpegCustomization"
-                                    is="emby-checkbox"
-                                />
-                                <span>Enable FFmpeg Customization</span>
-                            </label>
-                        </div>
-                        <div class="fieldDescription">
-                            Enable custom FFmpeg settings for better remote
-                            stream detection. Disable this to use Jellyfin's
-                            default FFmpeg configuration.
-                        </div>
-
-                        <div id="FFmpegSettings" style="margin-top: 15px">
-                            <div class="inputContainer">
-                                <label
-                                    class="inputLabel inputLabelUnfocused"
-                                    for="FFmpegProbeSize"
-                                    >FFmpeg Probe Size</label
-                                >
-                                <input
-                                    id="FFmpegProbeSize"
-                                    name="FFmpegProbeSize"
-                                    type="text"
-                                    is="emby-input"
-                                />
                                 <div class="fieldDescription">
-                                    Maximum bytes to read for format detection
-                                    (e.g., 40M). Increase for slow remote
-                                    streams.
+                                    When disabled, Jellyfin's default FFmpeg
+                                    settings will be used. Enable this to
+                                    customize probe and analyze settings for
+                                    better stream detection.
+                                    <strong>Requires restart</strong> to take
+                                    effect.
                                 </div>
                             </div>
+
                             <div class="inputContainer">
                                 <label
                                     class="inputLabel inputLabelUnfocused"
                                     for="FFmpegAnalyzeDuration"
-                                    >FFmpeg Analyze Duration</label
+                                    >FFmpeg analyzeduration</label
                                 >
                                 <input
-                                    id="FFmpegAnalyzeDuration"
-                                    name="FFmpegAnalyzeDuration"
                                     type="text"
+                                    id="FFmpegAnalyzeDuration"
                                     is="emby-input"
+                                    class="emby-input"
+                                    placeholder="5M"
                                 />
                                 <div class="fieldDescription">
-                                    Maximum time to analyze stream format (e.g.,
-                                    5M). Increase if streams timeout during
-                                    detection.
+                                    Max analyze duration passed to FFmpeg (e.g.,
+                                    <code>5M</code>, <code>2M</code>, or
+                                    microseconds). Determines how much data is
+                                    analyzed to find stream information.
+                                    Default: <code>5M</code>.
                                 </div>
                             </div>
-                        </div>
 
-                        <div>
-                            <button
-                                is="emby-button"
-                                type="submit"
-                                class="raised button-submit block emby-button"
+                            <div class="inputContainer">
+                                <label
+                                    class="inputLabel inputLabelUnfocused"
+                                    for="FFmpegProbeSize"
+                                    >FFmpeg probesize</label
+                                >
+                                <input
+                                    type="text"
+                                    id="FFmpegProbeSize"
+                                    is="emby-input"
+                                    class="emby-input"
+                                    placeholder="40M"
+                                />
+                                <div class="fieldDescription">
+                                    Max probe size passed to FFmpeg (e.g.,
+                                    <code>40M</code>, <code>25M</code>, or
+                                    bytes). Determines how much data is probed
+                                    before determining stream characteristics.
+                                    Default: <code>40M</code>.
+                                </div>
+                            </div>
+
+                            <h3 class="sectionTitle">Maintenance & Updates</h3>
+
+                            <div
+                                class="fieldDescription"
+                                style="margin-bottom: 15px"
                             >
-                                <span>Save</span>
-                            </button>
+                                <strong>Series Updates:</strong> To keep your TV
+                                series up-to-date with new seasons/episodes, go
+                                to:
+                                <strong
+                                    >Dashboard → Scheduled Tasks → Update
+                                    Jfresolve Series</strong
+                                >
+                                and add a trigger (recommended: Weekly on Sunday
+                                at 4 AM). Series are also checked for updates
+                                when accessed if not updated in 7+ days.
+                            </div>
+
+                            <div class="fieldDescription">
+                                <strong>Clear All Items:</strong> To remove all
+                                items added by Jfresolve, go to:
+                                <strong
+                                    >Dashboard → Scheduled Tasks → Clear All
+                                    Jfresolve Items</strong
+                                >
+                                and click "Run Task". This will delete all
+                                movies and series (watch status will be lost).
+                            </div>
+
+                            <div style="margin-top: 30px">
+                                <button
+                                    is="emby-button"
+                                    type="submit"
+                                    class="raised button-submit block emby-button"
+                                >
+                                    <span>Save</span>
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -422,238 +503,253 @@
             <script type="text/javascript">
                 var JfresolveConfig = {
                     pluginUniqueId: "506F18B8-5DAD-4CD3-B9A0-F7ED933E9939",
-                    updateFFmpegVisibility: function () {
-                        var isEnabled = document.querySelector(
-                            "#EnableFFmpegCustomization",
-                        ).checked;
-                        var ffmpegSettings =
-                            document.querySelector("#FFmpegSettings");
-                        ffmpegSettings.style.display = isEnabled
-                            ? "block"
-                            : "none";
-                    },
                 };
 
-                // Load plugin config into form
                 document
-                    .querySelector("#JfresolveConfigPage")
+                    .getElementById("JfresolveConfigPage")
                     .addEventListener("pageshow", function () {
                         Dashboard.showLoadingMsg();
                         ApiClient.getPluginConfiguration(
                             JfresolveConfig.pluginUniqueId,
-                        ).then(function (config) {
-                            document.querySelector("#TmdbApiKey").value =
-                                config.TmdbApiKey || "";
-                            document.querySelector("#MoviesLibraryPath").value =
-                                config.MoviesLibraryPath || "";
-                            document.querySelector("#ShowsLibraryPath").value =
-                                config.ShowsLibraryPath || "";
-                            document.querySelector("#AnimeLibraryPath").value =
-                                config.AnimeLibraryPath || "";
-                            document.querySelector("#JellyfinBaseUrl").value =
-                                config.JellyfinBaseUrl || "";
-                            document.querySelector("#AddonManifestUrl").value =
-                                config.AddonManifestUrl || "";
-                            document.querySelector("#IncludeAdult").checked =
-                                config.IncludeAdult || false;
-                            document.querySelector(
-                                "#IncludeUnreleased",
-                            ).checked = config.IncludeUnreleased || false;
-                            document.querySelector("#IncludeSpecials").checked =
-                                config.IncludeSpecials || false;
-                            document.querySelector("#SearchNumber").value =
-                                config.SearchNumber || 3;
-                            document.querySelector(
-                                "#EnableExternalResults",
-                            ).checked = config.EnableExternalResults || false;
-                            document.querySelector("#EnableMixed").checked =
-                                config.EnableMixed || false;
-                            document.querySelector(
-                                "#UnreleasedBufferDays",
-                            ).value =
-                                config.UnreleasedBufferDays !== null &&
-                                config.UnreleasedBufferDays !== undefined
-                                    ? config.UnreleasedBufferDays
-                                    : 30;
-                            document.querySelector(
-                                "#EnableLibraryPopulation",
-                            ).checked = config.EnableLibraryPopulation || false;
-                            document.querySelector(
-                                "#LibraryPopulationHour",
-                            ).value =
-                                config.LibraryPopulationHour != null
-                                    ? config.LibraryPopulationHour
-                                    : 3;
-                            document.querySelector("#ItemsPerRequest").value =
-                                config.ItemsPerRequest != null
-                                    ? config.ItemsPerRequest
-                                    : 100;
-                            document.querySelector(
-                                "#EnableAutoScanAfterPopulation",
-                            ).checked =
-                                config.EnableAutoScanAfterPopulation || false;
-                            document.querySelector(
-                                "#EnableFFmpegCustomization",
-                            ).checked =
-                                config.EnableFFmpegCustomization != null
-                                    ? config.EnableFFmpegCustomization
-                                    : true;
-                            document.querySelector("#FFmpegProbeSize").value =
-                                config.FFmpegProbeSize || "40M";
-                            document.querySelector(
-                                "#FFmpegAnalyzeDuration",
-                            ).value = config.FFmpegAnalyzeDuration || "5M";
+                        )
+                            .then(function (config) {
+                                console.log("Loaded config:", config);
+                                document.getElementById(
+                                    "JellyfinServerUrl",
+                                ).value =
+                                    config.JellyfinServerUrl ||
+                                    "http://localhost:8096";
+                                document.getElementById(
+                                    "EnableSearch",
+                                ).checked = config.EnableSearch !== false;
+                                document.getElementById("MoviePath").value =
+                                    config.MoviePath || "";
+                                document.getElementById("SeriesPath").value =
+                                    config.SeriesPath || "";
+                                document.getElementById(
+                                    "EnableAnimeFolder",
+                                ).checked = config.EnableAnimeFolder || false;
+                                document.getElementById("AnimePath").value =
+                                    config.AnimePath || "";
+                                document.getElementById("TmdbApiKey").value =
+                                    config.TmdbApiKey || "";
+                                document.getElementById(
+                                    "AddonManifestUrl",
+                                ).value = config.AddonManifestUrl || "";
+                                document.getElementById(
+                                    "PreferredQuality",
+                                ).value = config.PreferredQuality || "Auto";
+                                document.getElementById(
+                                    "SearchResultLimit",
+                                ).value = config.SearchResultLimit || 15;
+                                document.getElementById(
+                                    "IncludeAdult",
+                                ).checked = config.IncludeAdult || false;
+                                document.getElementById(
+                                    "FilterUnreleased",
+                                ).checked = config.FilterUnreleased !== false;
+                                document.getElementById(
+                                    "UnreleasedBufferDays",
+                                ).value = config.UnreleasedBufferDays || 7;
+                                // Auto-population settings with debug logging
+                                console.log("Auto-population raw values:", {
+                                    EnableAutoPopulation:
+                                        config.EnableAutoPopulation,
+                                    PopulationSource: config.PopulationSource,
+                                    PopulationResultLimit:
+                                        config.PopulationResultLimit,
+                                });
 
-                            // Toggle FFmpeg settings visibility
-                            JfresolveConfig.updateFFmpegVisibility();
+                                document.getElementById(
+                                    "EnableAutoPopulation",
+                                ).checked =
+                                    config.EnableAutoPopulation === true;
 
-                            Dashboard.hideLoadingMsg();
-                        });
+                                // Handle PopulationSource - set dropdown value
+                                var populationSourceValue =
+                                    config.PopulationSource ?? 0;
+
+                                document.getElementById(
+                                    "PopulationSource",
+                                ).value = populationSourceValue.toString();
+
+                                console.log(
+                                    "PopulationSource loaded:",
+                                    populationSourceValue,
+                                    "dropdown value:",
+                                    document.getElementById("PopulationSource")
+                                        .value,
+                                );
+                                document.getElementById(
+                                    "PopulationResultLimit",
+                                ).value = config.PopulationResultLimit || 20;
+
+                                // Display last population run
+                                var lastRunDisplay = document.getElementById(
+                                    "lastPopulationRunDisplay",
+                                );
+                                if (config.LastPopulationRun) {
+                                    var lastRunDate = new Date(
+                                        config.LastPopulationRun,
+                                    );
+                                    lastRunDisplay.textContent =
+                                        "Last Run: " +
+                                        lastRunDate.toLocaleString();
+                                } else {
+                                    lastRunDisplay.textContent =
+                                        "Last Run: Never";
+                                }
+
+                                // FFmpeg settings
+                                document.getElementById(
+                                    "EnableCustomFFmpegSettings",
+                                ).checked =
+                                    config.EnableCustomFFmpegSettings || false;
+                                document.getElementById(
+                                    "FFmpegAnalyzeDuration",
+                                ).value = config.FFmpegAnalyzeDuration || "5M";
+                                document.getElementById(
+                                    "FFmpegProbeSize",
+                                ).value = config.FFmpegProbeSize || "40M";
+
+                                Dashboard.hideLoadingMsg();
+                            })
+                            .catch(function (err) {
+                                console.error("Failed to load config:", err);
+                                Dashboard.hideLoadingMsg();
+                            });
                     });
 
-                // Toggle FFmpeg settings visibility based on checkbox
                 document
-                    .querySelector("#EnableFFmpegCustomization")
-                    .addEventListener("change", function () {
-                        JfresolveConfig.updateFFmpegVisibility();
-                    });
-
-                // Save plugin config from form
-                document
-                    .querySelector("#JfresolveConfigForm")
+                    .getElementById("JfresolveConfigForm")
                     .addEventListener("submit", function (e) {
                         e.preventDefault();
                         Dashboard.showLoadingMsg();
+
                         ApiClient.getPluginConfiguration(
                             JfresolveConfig.pluginUniqueId,
-                        ).then(function (config) {
-                            config.TmdbApiKey =
-                                document.querySelector("#TmdbApiKey").value;
-                            config.MoviesLibraryPath =
-                                document.querySelector(
-                                    "#MoviesLibraryPath",
-                                ).value;
-                            config.ShowsLibraryPath =
-                                document.querySelector(
-                                    "#ShowsLibraryPath",
-                                ).value;
-                            config.AnimeLibraryPath =
-                                document.querySelector(
-                                    "#AnimeLibraryPath",
-                                ).value;
-                            config.JellyfinBaseUrl =
-                                document
-                                    .querySelector("#JellyfinBaseUrl")
-                                    .value.trim() || "http://127.0.0.1:8096";
-                            config.AddonManifestUrl =
-                                document.querySelector(
-                                    "#AddonManifestUrl",
-                                ).value;
-                            config.IncludeAdult =
-                                document.querySelector("#IncludeAdult").checked;
-                            config.IncludeUnreleased =
-                                document.querySelector(
-                                    "#IncludeUnreleased",
-                                ).checked;
-                            config.IncludeSpecials =
-                                document.querySelector(
-                                    "#IncludeSpecials",
-                                ).checked;
-                            config.SearchNumber =
-                                parseInt(
-                                    document.querySelector("#SearchNumber")
-                                        .value,
-                                    10,
-                                ) || 3;
-                            config.EnableExternalResults =
-                                document.querySelector(
-                                    "#EnableExternalResults",
-                                ).checked;
-                            config.EnableMixed =
-                                document.querySelector("#EnableMixed").checked;
-                            var parsedBufferDays = parseInt(
-                                document.querySelector("#UnreleasedBufferDays")
-                                    .value,
-                                10,
-                            );
-                            config.UnreleasedBufferDays = !isNaN(
-                                parsedBufferDays,
-                            )
-                                ? parsedBufferDays
-                                : 30;
-                            config.EnableLibraryPopulation =
-                                document.querySelector(
-                                    "#EnableLibraryPopulation",
-                                ).checked;
-                            var parsedHour = parseInt(
-                                document.querySelector("#LibraryPopulationHour")
-                                    .value,
-                                10,
-                            );
-                            config.LibraryPopulationHour =
-                                !isNaN(parsedHour) &&
-                                parsedHour >= 0 &&
-                                parsedHour <= 23
-                                    ? parsedHour
-                                    : 3;
-                            config.ItemsPerRequest =
-                                parseInt(
-                                    document.querySelector("#ItemsPerRequest")
-                                        .value,
-                                    10,
-                                ) || 100;
-                            config.EnableAutoScanAfterPopulation =
-                                document.querySelector(
-                                    "#EnableAutoScanAfterPopulation",
-                                ).checked;
-                            config.EnableFFmpegCustomization =
-                                document.querySelector(
-                                    "#EnableFFmpegCustomization",
-                                ).checked;
-                            config.FFmpegProbeSize = (
-                                document.querySelector("#FFmpegProbeSize")
-                                    .value || "40M"
-                            ).trim();
-                            config.FFmpegAnalyzeDuration = (
-                                document.querySelector("#FFmpegAnalyzeDuration")
-                                    .value || "5M"
-                            ).trim();
-                            ApiClient.updatePluginConfiguration(
-                                JfresolveConfig.pluginUniqueId,
-                                config,
-                            ).then(function (result) {
-                                Dashboard.processPluginConfigurationUpdateResult(
-                                    result,
-                                );
-                            });
-                        });
-                    });
+                        )
+                            .then(function (config) {
+                                config.JellyfinServerUrl =
+                                    document.getElementById(
+                                        "JellyfinServerUrl",
+                                    ).value;
+                                config.EnableSearch =
+                                    document.getElementById(
+                                        "EnableSearch",
+                                    ).checked;
+                                config.MoviePath =
+                                    document.getElementById("MoviePath").value;
+                                config.SeriesPath =
+                                    document.getElementById("SeriesPath").value;
+                                config.EnableAnimeFolder =
+                                    document.getElementById(
+                                        "EnableAnimeFolder",
+                                    ).checked;
+                                config.AnimePath =
+                                    document.getElementById("AnimePath").value;
+                                config.TmdbApiKey =
+                                    document.getElementById("TmdbApiKey").value;
+                                config.AddonManifestUrl =
+                                    document.getElementById(
+                                        "AddonManifestUrl",
+                                    ).value;
+                                config.PreferredQuality =
+                                    document.getElementById(
+                                        "PreferredQuality",
+                                    ).value;
+                                config.SearchResultLimit =
+                                    parseInt(
+                                        document.getElementById(
+                                            "SearchResultLimit",
+                                        ).value,
+                                    ) || 15;
+                                config.IncludeAdult =
+                                    document.getElementById(
+                                        "IncludeAdult",
+                                    ).checked;
+                                config.FilterUnreleased =
+                                    document.getElementById(
+                                        "FilterUnreleased",
+                                    ).checked;
+                                config.UnreleasedBufferDays =
+                                    parseInt(
+                                        document.getElementById(
+                                            "UnreleasedBufferDays",
+                                        ).value,
+                                    ) || 7;
+                                config.EnableAutoPopulation =
+                                    document.getElementById(
+                                        "EnableAutoPopulation",
+                                    ).checked;
+                                config.PopulationSource =
+                                    parseInt(
+                                        document.getElementById(
+                                            "PopulationSource",
+                                        ).value,
+                                    ) || 0;
+                                config.PopulationResultLimit =
+                                    parseInt(
+                                        document.getElementById(
+                                            "PopulationResultLimit",
+                                        ).value,
+                                    ) || 20;
 
-                // Populate library button
-                document
-                    .querySelector("#PopulateLibraryBtn")
-                    .addEventListener("click", function () {
-                        Dashboard.showLoadingMsg();
-                        ApiClient.ajax({
-                            type: "POST",
-                            url: ApiClient.getUrl(
-                                "Plugins/Jfresolve/PopulateLibrary",
-                            ),
-                            dataType: "json",
-                        })
-                            .then(function () {
-                                Dashboard.hideLoadingMsg();
-                                Dashboard.alert(
-                                    "Library population started successfully.",
-                                );
+                                console.log("Saving auto-population config:", {
+                                    EnableAutoPopulation:
+                                        config.EnableAutoPopulation,
+                                    PopulationSource: config.PopulationSource,
+                                    PopulationResultLimit:
+                                        config.PopulationResultLimit,
+                                });
+
+                                // FFmpeg settings
+                                config.EnableCustomFFmpegSettings =
+                                    document.getElementById(
+                                        "EnableCustomFFmpegSettings",
+                                    ).checked;
+                                config.FFmpegAnalyzeDuration =
+                                    document.getElementById(
+                                        "FFmpegAnalyzeDuration",
+                                    ).value || "5M";
+                                config.FFmpegProbeSize =
+                                    document.getElementById("FFmpegProbeSize")
+                                        .value || "40M";
+
+                                console.log("Saving config:", config);
+
+                                ApiClient.updatePluginConfiguration(
+                                    JfresolveConfig.pluginUniqueId,
+                                    config,
+                                )
+                                    .then(function (result) {
+                                        console.log("Config saved:", result);
+                                        Dashboard.processPluginConfigurationUpdateResult(
+                                            result,
+                                        );
+                                    })
+                                    .catch(function (err) {
+                                        console.error(
+                                            "Failed to save config:",
+                                            err,
+                                        );
+                                        Dashboard.hideLoadingMsg();
+                                        require(["toast"], function (toast) {
+                                            toast(
+                                                "Failed to save configuration",
+                                            );
+                                        });
+                                    });
                             })
-                            .catch(function (error) {
-                                Dashboard.hideLoadingMsg();
-                                Dashboard.alert(
-                                    "Error: " +
-                                        (error.statusText || "Unknown error"),
+                            .catch(function (err) {
+                                console.error(
+                                    "Failed to get config for update:",
+                                    err,
                                 );
+                                Dashboard.hideLoadingMsg();
                             });
+
+                        return false;
                     });
             </script>
         </div>

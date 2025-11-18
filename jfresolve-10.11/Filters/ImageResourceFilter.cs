@@ -1,71 +1,74 @@
 using System;
 using System.Threading.Tasks;
-using Jfresolve.Provider;
-using MediaBrowser.Model.Entities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Logging;
 
-namespace Jfresolve.Filters
+namespace Jfresolve.Filters;
+
+/// <summary>
+/// Intercepts image requests and redirects to TMDB poster URLs
+/// Based on Gelato's ImageResourceFilter pattern
+/// </summary>
+public sealed class ImageResourceFilter : IAsyncResourceFilter
 {
-    public class ImageResourceFilter : IAsyncResourceFilter
+    private readonly JfresolveManager _manager;
+    private readonly ILogger<ImageResourceFilter> _log;
+
+    public ImageResourceFilter(
+        JfresolveManager manager,
+        ILogger<ImageResourceFilter> log
+    )
     {
-        private readonly ILogger<ImageResourceFilter> _logger;
-        private readonly JfresolveProvider _provider;
+        _manager = manager;
+        _log = log;
+    }
 
-        public ImageResourceFilter(ILogger<ImageResourceFilter> logger, JfresolveProvider provider)
+    public async Task OnResourceExecutionAsync(
+        ResourceExecutingContext ctx,
+        ResourceExecutionDelegate next
+    )
+    {
+        // Only intercept GetItemImage action
+        if (ctx.ActionDescriptor is not ControllerActionDescriptor cad
+            || cad.ActionName != "GetItemImage")
         {
-            _logger = logger;
-            _provider = provider;
-        }
-
-        public async Task OnResourceExecutionAsync(ResourceExecutingContext context, ResourceExecutionDelegate next)
-        {
-            if (context.ActionDescriptor is not ControllerActionDescriptor cad
-                || cad.ActionName != "GetItemImage")
-            {
-                await next();
-                return;
-            }
-
-            if (!context.RouteData.Values.TryGetValue("itemId", out var idObject) || !Guid.TryParse(idObject?.ToString(), out var id))
-            {
-                await next();
-                return;
-            }
-
-            if (_provider.MetaCache.TryGetValue(id, out var cachedEntry))
-            {
-                var meta = cachedEntry.Meta;
-                _logger.LogInformation("ImageResourceFilter is intercepting image request for item {Id}", id);
-
-                // Determine which image type is being requested
-                var imageType = context.RouteData.Values.TryGetValue("imageType", out var typeObj)
-                    ? typeObj?.ToString()
-                    : null;
-
-                // Try to serve the appropriate image based on type
-                string? imageUrl = null;
-
-                if (imageType == "Backdrop" && !string.IsNullOrEmpty(meta.Backdrop))
-                {
-                    imageUrl = meta.Backdrop;
-                }
-                else if (!string.IsNullOrEmpty(meta.Poster))
-                {
-                    // Default to poster for any other type (Primary, Thumb, etc.)
-                    imageUrl = meta.Poster;
-                }
-
-                if (!string.IsNullOrEmpty(imageUrl))
-                {
-                    context.Result = new RedirectResult(imageUrl, permanent: false);
-                    return;
-                }
-            }
-
             await next();
+            return;
         }
+
+        var routeValues = ctx.RouteData.Values;
+
+        // Get itemId from route
+        if (!routeValues.TryGetValue("itemId", out var guidString)
+            || !Guid.TryParse(guidString?.ToString(), out var guid))
+        {
+            await next();
+            return;
+        }
+
+        // Try to get TMDB movie metadata
+        var tmdbMovie = _manager.GetTmdbMetadata<TmdbMovie>(guid);
+        if (tmdbMovie != null && !string.IsNullOrWhiteSpace(tmdbMovie.PosterPath))
+        {
+            var posterUrl = tmdbMovie.GetPosterUrl();
+            _log.LogDebug("Jfresolve: Redirecting image request for {ItemId} to {PosterUrl}", guid, posterUrl);
+            ctx.HttpContext.Response.Redirect(posterUrl, permanent: false);
+            return;
+        }
+
+        // Try to get TMDB TV show metadata
+        var tmdbShow = _manager.GetTmdbMetadata<TmdbTvShow>(guid);
+        if (tmdbShow != null && !string.IsNullOrWhiteSpace(tmdbShow.PosterPath))
+        {
+            var posterUrl = tmdbShow.GetPosterUrl();
+            _log.LogDebug("Jfresolve: Redirecting image request for {ItemId} to {PosterUrl}", guid, posterUrl);
+            ctx.HttpContext.Response.Redirect(posterUrl, permanent: false);
+            return;
+        }
+
+        // No TMDB metadata found, let Jellyfin handle it
+        await next();
     }
 }

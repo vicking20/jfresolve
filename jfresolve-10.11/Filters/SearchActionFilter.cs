@@ -3,174 +3,221 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Jellyfin.Data.Enums;
-using Jfresolve.Configuration;
-using Jfresolve.Provider;
 using MediaBrowser.Controller.Dto;
+using MediaBrowser.Controller.Entities;
 using MediaBrowser.Model.Dto;
-using MediaBrowser.Model.Entities;
+using MediaBrowser.Model.MediaInfo;
 using MediaBrowser.Model.Querying;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Logging;
 
-namespace Jfresolve.Filters
+namespace Jfresolve.Filters;
+
+/// <summary>
+/// Intercepts search requests and returns TMDB results (based on Gelato's SearchActionFilter pattern)
+/// </summary>
+public class SearchActionFilter : IAsyncActionFilter, IOrderedFilter
 {
-    public class SearchActionFilter : IAsyncActionFilter, IOrderedFilter
+    private readonly IDtoService _dtoService;
+    private readonly JfresolveManager _manager;
+    private readonly ILogger<SearchActionFilter> _log;
+
+    public SearchActionFilter(
+        IDtoService dtoService,
+        JfresolveManager manager,
+        ILogger<SearchActionFilter> log
+    )
     {
-        private readonly ILogger<SearchActionFilter> _logger;
-        private readonly JfresolveProvider _provider;
-        private readonly IDtoService _dtoService;
+        _dtoService = dtoService;
+        _manager = manager;
+        _log = log;
+    }
 
-        // Update constructor
-        public SearchActionFilter(ILogger<SearchActionFilter> logger, JfresolveProvider provider, IDtoService dtoService)
+    public int Order => 1;
+
+    public async Task OnActionExecutionAsync(
+        ActionExecutingContext ctx,
+        ActionExecutionDelegate next
+    )
+    {
+        // Check if search is enabled in configuration
+        if (!JfresolvePlugin.Instance?.Configuration.EnableSearch ?? true)
         {
-            _logger = logger;
-            _provider = provider;
-            _dtoService = dtoService;
-        }
-
-        public int Order => 1;
-
-        public async Task OnActionExecutionAsync(ActionExecutingContext ctx, ActionExecutionDelegate next)
-        {
-            if (ctx.ActionDescriptor is not Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor cad
-                || (cad.ActionName != "GetItems" && cad.ActionName != "GetSearchHints"))
-            {
-                await next();
-                return;
-            }
-
-            var config = JfresolvePlugin.Instance?.Configuration;
-            if (config?.EnableMixed != true)
-            {
-                await next();
-                return;
-            }
-
-            var query = ctx.HttpContext.Request.Query;
-            var hasSearch = query.Keys.Any(k =>
-                string.Equals(k, "SearchTerm", StringComparison.OrdinalIgnoreCase)
-                && !string.IsNullOrWhiteSpace(query[k])
-            );
-
-            if (!hasSearch)
-            {
-                await next();
-                return;
-            }
-
-            // Figure out what types of items Jellyfin is searching for
-            // Only care about Movie and Series types - filter out everything else
-            var requestedKinds = new HashSet<BaseItemKind>();
-            var excludedTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            bool hasEpisodeRequest = false;
-            if (query.TryGetValue("IncludeItemTypes", out var includeVal))
-            {
-                foreach (var raw in includeVal.ToString().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                {
-                    if (Enum.TryParse<BaseItemKind>(raw, true, out var kind))
-                    {
-                        if (kind == BaseItemKind.Episode)
-                        {
-                            hasEpisodeRequest = true;
-                        }
-                        else if (kind == BaseItemKind.Movie || kind == BaseItemKind.Series)
-                        {
-                            requestedKinds.Add(kind);
-                        }
-                    }
-                }
-            }
-
-            // If ONLY Episodes are requested (no Movie/Series), skip our filter
-            if (hasEpisodeRequest && requestedKinds.Count == 0)
-            {
-                await next();
-                return;
-            }
-
-            if (query.TryGetValue("ExcludeItemTypes", out var excludeVal))
-            {
-                excludedTypes.UnionWith(excludeVal.ToString().Split(',', StringSplitOptions.RemoveEmptyEntries));
-            }
-
-            // If no Movie/Series types were requested, check if it's a global search
-            bool isGlobalSearch = !query.ContainsKey("IncludeItemTypes") && !query.ContainsKey("ExcludeItemTypes");
-
-            if (!isGlobalSearch && requestedKinds.Count == 0)
-            {
-                // Request is for other types only (not Movie/Series) - skip it
-                await next();
-                return;
-            }
-
-            // For global searches, include both Movie and Series
-            if (isGlobalSearch)
-            {
-                requestedKinds.Add(BaseItemKind.Movie);
-                requestedKinds.Add(BaseItemKind.Series);
-            }
-
-            var searchTerm = query["SearchTerm"].ToString();
-            _logger.LogInformation("Jfresolve is intercepting search for: {SearchTerm} with types: {Types}", searchTerm, string.Join(",", requestedKinds));
-
-            var allExternalResults = await _provider.SearchAsync(searchTerm);
-            _logger.LogInformation("Jfresolve provider found {Count} total results for '{SearchTerm}'", allExternalResults.Count, searchTerm);
-
-            // Convert to DTOs and group: Movies first, then Series
-            var dtos = new List<BaseItemDto>();
-            var options = new DtoOptions
-            {
-                Fields = new[] { ItemFields.PrimaryImageAspectRatio, ItemFields.Overview },
-                EnableImages = true,
-            };
-
-            // Add movies first if requested
-            if (requestedKinds.Contains(BaseItemKind.Movie))
-            {
-                var movieResults = allExternalResults.Where(m => m.Type == "Movie").ToList();
-                foreach (var meta in movieResults)
-                {
-                    var baseItem = _provider.IntoBaseItem(meta);
-                    if (baseItem == null) continue;
-
-                    // Wrap metadata with timestamp for timeout-based expiration
-                    _provider.MetaCache[baseItem.Id] = new CachedMetaEntry(meta);
-                    var dto = _dtoService.GetBaseItemDto(baseItem, options);
-                    dtos.Add(dto);
-                }
-            }
-
-            // Then add series if requested
-            if (requestedKinds.Contains(BaseItemKind.Series))
-            {
-                var seriesResults = allExternalResults.Where(m => m.Type == "Series").ToList();
-                foreach (var meta in seriesResults)
-                {
-                    var baseItem = _provider.IntoBaseItem(meta);
-                    if (baseItem == null) continue;
-
-                    // Wrap metadata with timestamp for timeout-based expiration
-                    _provider.MetaCache[baseItem.Id] = new CachedMetaEntry(meta);
-                    var dto = _dtoService.GetBaseItemDto(baseItem, options);
-                    dtos.Add(dto);
-                }
-            }
-
-            _logger.LogInformation("Successfully converted {Count} external items to DTOs. Movies: {Movies}, Shows: {Shows}",
-                dtos.Count,
-                dtos.Count(d => d.Type == BaseItemKind.Movie),
-                dtos.Count(d => d.Type == BaseItemKind.Series));
-
-            ctx.Result = new OkObjectResult(
-                new QueryResult<BaseItemDto>
-                {
-                    Items = dtos.ToArray(),
-                    TotalRecordCount = dtos.Count,
-                }
-            );
+            await next();
             return;
         }
+
+        // Check if this is a search action and get search term
+        if (!IsSearchAction(ctx) || !TryGetSearchTerm(ctx, out var searchTerm))
+        {
+            await next();
+            return;
+        }
+
+        // Handle "local:" prefix - pass through to default Jellyfin search
+        if (searchTerm.StartsWith("local:", StringComparison.OrdinalIgnoreCase))
+        {
+            ctx.ActionArguments["searchTerm"] = searchTerm.Substring(6).Trim();
+            await next();
+            return;
+        }
+
+        // Get requested item types from query parameters
+        var requestedTypes = GetRequestedItemTypes(ctx);
+        if (requestedTypes.Count == 0)
+        {
+            // No supported types requested, let Jellyfin handle it
+            await next();
+            return;
+        }
+
+        // Get pagination parameters
+        ctx.TryGetActionArgument("startIndex", out var start, 0);
+        ctx.TryGetActionArgument("limit", out var limit, 25);
+
+        // Search TMDB for all requested types
+        var baseItems = await SearchTmdbAsync(searchTerm, requestedTypes);
+
+        _log.LogInformation(
+            "Jfresolve: Intercepted /Items search \"{Query}\" types=[{Types}] start={Start} limit={Limit} results={Results}",
+            searchTerm,
+            string.Join(",", requestedTypes),
+            start,
+            limit,
+            baseItems.Count
+        );
+
+        // Convert BaseItems to DTOs (similar to Gelato's ConvertMetasToDtos)
+        var dtos = ConvertBaseItemsToDtos(baseItems);
+
+        // Apply pagination
+        var paged = dtos.Skip(start).Take(limit).ToArray();
+
+        // Return search results
+        ctx.Result = new OkObjectResult(
+            new QueryResult<BaseItemDto>
+            {
+                Items = paged,
+                TotalRecordCount = dtos.Count
+            }
+        );
+    }
+
+    /// <summary>
+    /// Search TMDB for all requested item types (similar to Gelato's SearchMetasAsync)
+    /// </summary>
+    private async Task<List<BaseItem>> SearchTmdbAsync(string searchTerm, HashSet<BaseItemKind> requestedTypes)
+    {
+        var tasks = new List<Task<List<BaseItem>>>();
+
+        foreach (var itemType in requestedTypes)
+        {
+            tasks.Add(_manager.SearchTmdbAsync(searchTerm, itemType));
+        }
+
+        var results = await Task.WhenAll(tasks);
+        return results.SelectMany(r => r).ToList();
+    }
+
+    /// <summary>
+    /// Convert BaseItems to DTOs (based on Gelato's ConvertMetasToDtos)
+    /// </summary>
+    private List<BaseItemDto> ConvertBaseItemsToDtos(List<BaseItem> baseItems)
+    {
+        var options = new DtoOptions
+        {
+            EnableImages = true,
+            EnableUserData = false,
+        };
+
+        var dtos = new List<BaseItemDto>(baseItems.Count);
+
+        foreach (var baseItem in baseItems)
+        {
+            var dto = _dtoService.GetBaseItemDto(baseItem, options);
+
+            // Use the BaseItem's ID (already set in JfresolveManager)
+            dto.Id = baseItem.Id;
+
+            dtos.Add(dto);
+        }
+
+        return dtos;
+    }
+
+    private bool IsSearchAction(ActionExecutingContext ctx)
+    {
+        var actionName = ctx.ActionDescriptor?.DisplayName ?? "";
+        return actionName.Contains("GetItems", StringComparison.OrdinalIgnoreCase) ||
+               actionName.Contains("GetItemsByUserIdLegacy", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool TryGetSearchTerm(ActionExecutingContext ctx, out string searchTerm)
+    {
+        searchTerm = string.Empty;
+
+        if (ctx.ActionArguments.TryGetValue("searchTerm", out var value) && value is string term)
+        {
+            searchTerm = term;
+            return !string.IsNullOrWhiteSpace(searchTerm);
+        }
+
+        return false;
+    }
+
+    private HashSet<BaseItemKind> GetRequestedItemTypes(ActionExecutingContext ctx)
+    {
+        var requested = new HashSet<BaseItemKind>(
+            new[] { BaseItemKind.Movie, BaseItemKind.Series }
+        );
+
+        // Check for includeItemTypes parameter
+        if (ctx.TryGetActionArgument<BaseItemKind[]>("includeItemTypes", out var includeTypes)
+            && includeTypes != null
+            && includeTypes.Length > 0)
+        {
+            requested = new HashSet<BaseItemKind>(includeTypes);
+            // Only keep Movie and Series (we only support these types)
+            requested.IntersectWith(new[] { BaseItemKind.Movie, BaseItemKind.Series });
+        }
+
+        // Remove excluded types
+        if (ctx.TryGetActionArgument<BaseItemKind[]>("excludeItemTypes", out var excludeTypes)
+            && excludeTypes != null
+            && excludeTypes.Length > 0)
+        {
+            requested.ExceptWith(excludeTypes);
+        }
+
+        // If mediaTypes=Video, exclude Series (Gelato pattern)
+        if (ctx.TryGetActionArgument<MediaType[]>("mediaTypes", out var mediaTypes)
+            && mediaTypes != null
+            && mediaTypes.Contains(MediaType.Video))
+        {
+            requested.Remove(BaseItemKind.Series);
+        }
+
+        return requested;
+    }
+}
+
+// Helper extension methods
+public static class ActionContextExtensions
+{
+    public static bool TryGetActionArgument<T>(
+        this ActionExecutingContext ctx,
+        string key,
+        out T value,
+        T defaultValue = default!)
+    {
+        if (ctx.ActionArguments.TryGetValue(key, out var objValue) && objValue is T typedValue)
+        {
+            value = typedValue;
+            return true;
+        }
+
+        value = defaultValue!;
+        return false;
     }
 }

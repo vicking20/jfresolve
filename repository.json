@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/vicking20/jfresolve/main/jfresolve.png",
     "versions": [
       {
+        "version": "1.0.0.3",
+        "changelog": "Code overhaul, new methods for search, save and auto populate",
+        "sourceUrl": "https://github.com/vicking20/jfresolve/releases/download/10.11.1.0.0.3/jfresolve.zip",
+        "checksum": "8cd941f98d1c34c06f180568ffce37ee",
+        "targetAbi": "10.11.0.0",
+        "timestamp": "2025-11-18T12:10:00Z"
+      },
+      {
         "version": "1.0.0.2",
         "changelog": "Targeted library refresh after search added",
         "sourceUrl": "https://github.com/vicking20/jfresolve/releases/download/10.11.1.0.0.2/jfresolve.zip",

@@ -1,150 +1,135 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Jfresolve.Filters;
-using Jfresolve.Provider;
-using MediaBrowser.Controller.Plugins;
-using Microsoft.Extensions.DependencyInjection;
+using Jfresolve.Providers;
+using Jfresolve.ScheduledTasks;
 using MediaBrowser.Controller;
+using MediaBrowser.Controller.Library;
+using MediaBrowser.Controller.Plugins;
+using MediaBrowser.Model.MediaInfo;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace Jfresolve
+namespace Jfresolve;
+
+public class ServiceRegistrator : IPluginServiceRegistrator
 {
-    /// <summary>
-    /// Registers services and filters for the Jfresolve plugin.
-    /// </summary>
-    public class ServiceRegistrator : IPluginServiceRegistrator
+    public void RegisterServices(IServiceCollection services, IServerApplicationHost host)
     {
-        public void RegisterServices(IServiceCollection services, IServerApplicationHost applicationHost)
+        // Register core services
+        services.AddSingleton<TmdbService>();
+        services.AddSingleton<JfresolveManager>();
+        services.AddSingleton<JfresolveSeriesProvider>();
+        services.AddSingleton<SearchActionFilter>();
+        services.AddSingleton<InsertActionFilter>();
+        services.AddSingleton<ImageResourceFilter>();
+        services.AddSingleton<DeleteResourceFilter>();
+
+        // Register scheduled tasks
+        services.AddSingleton<PurgeJfresolveTask>();
+        services.AddSingleton<PopulateLibraryTask>();
+        services.AddSingleton<UpdateSeriesTask>();
+
+        // Register HttpClientFactory for TMDB API calls
+        services.AddHttpClient();
+
+        // Register FFmpeg configuration service (Gelato pattern)
+        services.AddHostedService<JfresolveFFmpegConfigService>();
+
+        // Register MVC filters
+        services.PostConfigure<Microsoft.AspNetCore.Mvc.MvcOptions>(options =>
         {
-            // Register HttpClientFactory for TMDB API calls
-            services.AddHttpClient(nameof(JfresolveProvider))
-                .ConfigureHttpClient(client =>
-                {
-                    client.Timeout = TimeSpan.FromSeconds(15);
-                });
+            options.Filters.AddService<SearchActionFilter>(order: 1);
+            options.Filters.AddService<InsertActionFilter>(order: 2);
+            options.Filters.AddService<ImageResourceFilter>(order: 3);
+            options.Filters.AddService<DeleteResourceFilter>(order: 4);
+        });
+    }
+}
 
-            // Register the JfresolveProvider
-            services.AddSingleton<JfresolveProvider>();
+/// <summary>
+/// Background service that applies FFmpeg configuration on startup (Gelato pattern)
+/// </summary>
+public class JfresolveFFmpegConfigService : IHostedService
+{
+    private readonly IConfiguration _config;
+    private readonly ILogger<JfresolveFFmpegConfigService> _log;
 
-            // Register the STRM file generator
-            services.AddSingleton<StrmFileGenerator>();
-
-            // Register the filters as services
-            services.AddSingleton<SearchActionFilter>();
-            services.AddSingleton<InsertActionFilter>();
-            services.AddSingleton<ImageResourceFilter>();
-            services.AddSingleton<PlaybackInfoFilter>();
-
-            // Register the FFmpeg configuration hosted service
-            services.AddHostedService<FFmpegConfigSetter>();
-
-            // Add the filters to the MVC pipeline
-            services.PostConfigure<Microsoft.AspNetCore.Mvc.MvcOptions>(o =>
-            {
-                o.Filters.AddService<PlaybackInfoFilter>();
-                o.Filters.AddService<SearchActionFilter>();
-                o.Filters.AddService<InsertActionFilter>();
-                o.Filters.AddService<ImageResourceFilter>();
-            });
-        }
+    public JfresolveFFmpegConfigService(
+        IConfiguration config,
+        ILogger<JfresolveFFmpegConfigService> log)
+    {
+        _config = config;
+        _log = log;
     }
 
-    /// <summary>
-    /// Configures FFmpeg settings during plugin startup.
-    /// Sets probe size and analyze duration for better remote stream detection.
-    /// This is especially important for streaming from torrent providers and other remote sources.
-    /// </summary>
-    public class FFmpegConfigSetter : IHostedService, IAsyncDisposable
+    public Task StartAsync(CancellationToken cancellationToken)
     {
-        private readonly IConfiguration _config;
-        private readonly ILogger<FFmpegConfigSetter> _logger;
-        private bool _disposed;
+        var config = JfresolvePlugin.Instance?.Configuration;
 
-        public FFmpegConfigSetter(IConfiguration config, ILogger<FFmpegConfigSetter> logger)
+        // Only apply custom FFmpeg settings if enabled
+        if (config?.EnableCustomFFmpegSettings == true)
         {
-            _config = config;
-            _logger = logger;
+            var analyze = config.FFmpegAnalyzeDuration ?? "5M";
+            var probe = config.FFmpegProbeSize ?? "40M";
+
+            _config["FFmpeg:probesize"] = probe;
+            _config["FFmpeg:analyzeduration"] = analyze;
+
+            _log.LogInformation(
+                "Jfresolve: Custom FFmpeg settings enabled - Set FFmpeg:probesize={Probe}, FFmpeg:analyzeduration={Analyze}",
+                probe,
+                analyze
+            );
+        }
+        else
+        {
+            _log.LogInformation(
+                "Jfresolve: Using Jellyfin's default FFmpeg settings (custom settings disabled)"
+            );
         }
 
-        /// <summary>
-        /// Applies FFmpeg configuration settings when the service starts.
-        /// Respects the EnableFFmpegCustomization toggle - if disabled, Jellyfin's default FFmpeg configuration is used.
-        /// </summary>
-        public Task StartAsync(CancellationToken cancellationToken)
+        return Task.CompletedTask;
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+}
+
+// Extension methods for service decoration
+public static class ServiceCollectionExtensions
+{
+    public static IServiceCollection Decorate<TInterface, TDecorator>(this IServiceCollection services)
+        where TInterface : class
+        where TDecorator : class, TInterface
+    {
+        var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(TInterface));
+        if (descriptor == null)
         {
-            try
-            {
-                // Check if FFmpeg customization is enabled
-                var enableFFmpegCustomization = JfresolvePlugin.Instance?.Configuration?.EnableFFmpegCustomization ?? true;
-
-                if (enableFFmpegCustomization)
-                {
-                    // Get FFmpeg settings from plugin configuration, with sensible defaults
-                    var probeSize = JfresolvePlugin.Instance?.Configuration?.FFmpegProbeSize ?? "40M";
-                    var analyzeDuration = JfresolvePlugin.Instance?.Configuration?.FFmpegAnalyzeDuration ?? "5M";
-
-                    // Apply settings to Jellyfin's FFmpeg configuration
-                    _config["FFmpeg:probesize"] = probeSize;
-                    _config["FFmpeg:analyzeduration"] = analyzeDuration;
-
-                    _logger.LogInformation(
-                        "[Jfresolve] FFmpeg configuration applied: probesize={ProbeSize}, analyzeduration={AnalyzeDuration}",
-                        probeSize,
-                        analyzeDuration);
-                }
-                else
-                {
-                    _logger.LogInformation("[Jfresolve] FFmpeg customization is disabled, using Jellyfin's default FFmpeg configuration");
-                }
-
-                return Task.CompletedTask;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[Jfresolve] Error configuring FFmpeg settings");
-                return Task.CompletedTask;
-            }
+            throw new InvalidOperationException($"Service of type {typeof(TInterface).Name} is not registered.");
         }
 
-        /// <summary>
-        /// Called when the hosted service is stopping.
-        /// Performs cleanup before the plugin is unloaded.
-        /// </summary>
-        public Task StopAsync(CancellationToken cancellationToken)
-        {
-            try
+        var decoratorDescriptor = new ServiceDescriptor(
+            typeof(TInterface),
+            provider =>
             {
-                _logger?.LogInformation("[Jfresolve] FFmpegConfigSetter stopping");
-                return Task.CompletedTask;
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "[Jfresolve] Error stopping FFmpegConfigSetter");
-                return Task.CompletedTask;
-            }
-        }
+                var inner = descriptor.ImplementationType != null
+                    ? ActivatorUtilities.CreateInstance(provider, descriptor.ImplementationType)
+                    : descriptor.ImplementationFactory?.Invoke(provider)
+                      ?? descriptor.ImplementationInstance
+                      ?? throw new InvalidOperationException("Unable to resolve inner service.");
 
-        /// <summary>
-        /// Disposes the FFmpeg config setter service.
-        /// </summary>
-        public async ValueTask DisposeAsync()
-        {
-            if (_disposed)
-                return;
+                return ActivatorUtilities.CreateInstance(provider, typeof(TDecorator), inner);
+            },
+            descriptor.Lifetime
+        );
 
-            try
-            {
-                await StopAsync(CancellationToken.None).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "[Jfresolve] Error during FFmpegConfigSetter disposal");
-            }
+        services.Remove(descriptor);
+        services.Add(decoratorDescriptor);
 
-            _disposed = true;
-        }
+        return services;
     }
 }
