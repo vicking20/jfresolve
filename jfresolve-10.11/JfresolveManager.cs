@@ -579,17 +579,18 @@ public class JfresolveManager
             {
                 parent.AddChild(baseItem);
                 _log.LogInformation("Jfresolve: Inserted series '{Name}' with ID {Id}", baseItem.Name, baseItem.Id);
+
+                // Create seasons/episodes BEFORE releasing lock to ensure they're created before repo update
+                // This prevents race condition where client sees series before seasons are added
+                if (metadata is TmdbTvShow tmdbShow2)
+                {
+                    await CreateSeasonsAndEpisodesForSeries((Series)baseItem, tmdbShow2, ct);
+                }
             }
         }
         finally
         {
             _insertLock.Release();
-        }
-
-        // Create seasons/episodes OUTSIDE the lock to avoid blocking other requests
-        if (kind == BaseItemKind.Series && metadata is TmdbTvShow tmdbShow2)
-        {
-            await CreateSeasonsAndEpisodesForSeries((Series)baseItem, tmdbShow2, ct);
         }
 
         // Update repository to ensure item is persisted (Gelato pattern)
