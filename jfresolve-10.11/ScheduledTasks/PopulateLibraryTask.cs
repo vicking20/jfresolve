@@ -81,19 +81,56 @@ public sealed class PopulateLibraryTask : IScheduledTask
             // For now, we'll use trending content with "week" time window
             progress.Report(10);
 
-            _log.LogInformation("Jfresolve: Fetching trending movies from TMDB...");
-            var trendingMovies = await _tmdbService.GetTrendingMoviesAsync(
-                config.TmdbApiKey,
-                "week",
-                config.IncludeAdult);
+            // Choose TMDB endpoint based on configuration
+            List<TmdbMovie> trendingMovies;
+            switch (config.PopulationSource)
+            {
+                case Configuration.PopulationSource.TMDBPopular:
+                    _log.LogInformation("Jfresolve: Fetching popular movies from TMDB...");
+                    trendingMovies = await _tmdbService.GetPopularMoviesAsync(
+                        config.TmdbApiKey,
+                        config.IncludeAdult);
+                    break;
+                case Configuration.PopulationSource.TMDBTopRated:
+                    _log.LogInformation("Jfresolve: Fetching top rated movies from TMDB...");
+                    trendingMovies = await _tmdbService.GetTopRatedMoviesAsync(
+                        config.TmdbApiKey,
+                        config.IncludeAdult);
+                    break;
+                default:
+                    _log.LogInformation("Jfresolve: Fetching trending movies from TMDB...");
+                    trendingMovies = await _tmdbService.GetTrendingMoviesAsync(
+                        config.TmdbApiKey,
+                        "week",
+                        config.IncludeAdult);
+                    break;
+            }
 
             progress.Report(30);
 
-            _log.LogInformation("Jfresolve: Fetching trending TV shows from TMDB...");
-            var trendingTvShows = await _tmdbService.GetTrendingTvShowsAsync(
-                config.TmdbApiKey,
-                "week",
-                config.IncludeAdult);
+            List<TmdbTvShow> trendingTvShows;
+            switch (config.PopulationSource)
+            {
+                case Configuration.PopulationSource.TMDBPopular:
+                    _log.LogInformation("Jfresolve: Fetching popular TV shows from TMDB...");
+                    trendingTvShows = await _tmdbService.GetPopularTvShowsAsync(
+                        config.TmdbApiKey,
+                        config.IncludeAdult);
+                    break;
+                case Configuration.PopulationSource.TMDBTopRated:
+                    _log.LogInformation("Jfresolve: Fetching top rated TV shows from TMDB...");
+                    trendingTvShows = await _tmdbService.GetTopRatedTvShowsAsync(
+                        config.TmdbApiKey,
+                        config.IncludeAdult);
+                    break;
+                default:
+                    _log.LogInformation("Jfresolve: Fetching trending TV shows from TMDB...");
+                    trendingTvShows = await _tmdbService.GetTrendingTvShowsAsync(
+                        config.TmdbApiKey,
+                        "week",
+                        config.IncludeAdult);
+                    break;
+            }
 
             progress.Report(50);
 

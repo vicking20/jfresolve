@@ -107,7 +107,17 @@ public class PluginConfiguration : BasePluginConfiguration
 public enum PopulationSource
 {
     /// <summary>
-    /// Use TMDB trending/popular content
+    /// Use TMDB trending content (default, same as previous `TMDB` value)
     /// </summary>
-    TMDB = 0
+    TMDB = 0,
+
+    /// <summary>
+    /// Use TMDB popular content (movie/tv popular endpoints)
+    /// </summary>
+    TMDBPopular = 1,
+
+    /// <summary>
+    /// Use TMDB top rated content (movie/tv top_rated endpoints)
+    /// </summary>
+    TMDBTopRated = 2
 }
