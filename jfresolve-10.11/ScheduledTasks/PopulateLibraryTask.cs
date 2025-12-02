@@ -71,6 +71,21 @@ public sealed class PopulateLibraryTask : IScheduledTask
             config.PopulationSource,
             config.PopulationResultLimit);
 
+        // Parse exclusion list
+        var excludedIds = new HashSet<int>();
+        if (!string.IsNullOrWhiteSpace(config.ExclusionList))
+        {
+            var ids = config.ExclusionList.Split(',', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var idStr in ids)
+            {
+                if (int.TryParse(idStr.Trim(), out var id))
+                {
+                    excludedIds.Add(id);
+                }
+            }
+            _log.LogInformation("Jfresolve: Loaded {Count} excluded TMDB IDs", excludedIds.Count);
+        }
+
         try
         {
             var moviesAdded = 0;
@@ -81,19 +96,56 @@ public sealed class PopulateLibraryTask : IScheduledTask
             // For now, we'll use trending content with "week" time window
             progress.Report(10);
 
-            _log.LogInformation("Jfresolve: Fetching trending movies from TMDB...");
-            var trendingMovies = await _tmdbService.GetTrendingMoviesAsync(
-                config.TmdbApiKey,
-                "week",
-                config.IncludeAdult);
+            // Choose TMDB endpoint based on configuration
+            List<TmdbMovie> trendingMovies;
+            switch (config.PopulationSource)
+            {
+                case Configuration.PopulationSource.TMDBPopular:
+                    _log.LogInformation("Jfresolve: Fetching popular movies from TMDB...");
+                    trendingMovies = await _tmdbService.GetPopularMoviesAsync(
+                        config.TmdbApiKey,
+                        config.IncludeAdult);
+                    break;
+                case Configuration.PopulationSource.TMDBTopRated:
+                    _log.LogInformation("Jfresolve: Fetching top rated movies from TMDB...");
+                    trendingMovies = await _tmdbService.GetTopRatedMoviesAsync(
+                        config.TmdbApiKey,
+                        config.IncludeAdult);
+                    break;
+                default:
+                    _log.LogInformation("Jfresolve: Fetching trending movies from TMDB...");
+                    trendingMovies = await _tmdbService.GetTrendingMoviesAsync(
+                        config.TmdbApiKey,
+                        "week",
+                        config.IncludeAdult);
+                    break;
+            }
 
             progress.Report(30);
 
-            _log.LogInformation("Jfresolve: Fetching trending TV shows from TMDB...");
-            var trendingTvShows = await _tmdbService.GetTrendingTvShowsAsync(
-                config.TmdbApiKey,
-                "week",
-                config.IncludeAdult);
+            List<TmdbTvShow> trendingTvShows;
+            switch (config.PopulationSource)
+            {
+                case Configuration.PopulationSource.TMDBPopular:
+                    _log.LogInformation("Jfresolve: Fetching popular TV shows from TMDB...");
+                    trendingTvShows = await _tmdbService.GetPopularTvShowsAsync(
+                        config.TmdbApiKey,
+                        config.IncludeAdult);
+                    break;
+                case Configuration.PopulationSource.TMDBTopRated:
+                    _log.LogInformation("Jfresolve: Fetching top rated TV shows from TMDB...");
+                    trendingTvShows = await _tmdbService.GetTopRatedTvShowsAsync(
+                        config.TmdbApiKey,
+                        config.IncludeAdult);
+                    break;
+                default:
+                    _log.LogInformation("Jfresolve: Fetching trending TV shows from TMDB...");
+                    trendingTvShows = await _tmdbService.GetTrendingTvShowsAsync(
+                        config.TmdbApiKey,
+                        "week",
+                        config.IncludeAdult);
+                    break;
+            }
 
             progress.Report(50);
 
@@ -119,6 +171,23 @@ public sealed class PopulateLibraryTask : IScheduledTask
                 _log.LogInformation(
                     "Jfresolve: Filtered unreleased content - Movies: {BeforeMovies} -> {AfterMovies}, TV: {BeforeTv} -> {AfterTv}",
                     beforeFilterMovies, trendingMovies.Count, beforeFilterTv, trendingTvShows.Count);
+            }
+
+            // Apply exclusion list filter
+            if (excludedIds.Count > 0)
+            {
+                var beforeFilterMovies = trendingMovies.Count;
+                var beforeFilterTv = trendingTvShows.Count;
+
+                trendingMovies = trendingMovies.Where(m => !excludedIds.Contains(m.Id)).ToList();
+                trendingTvShows = trendingTvShows.Where(tv => !excludedIds.Contains(tv.Id)).ToList();
+
+                if (trendingMovies.Count < beforeFilterMovies || trendingTvShows.Count < beforeFilterTv)
+                {
+                    _log.LogInformation(
+                        "Jfresolve: Filtered excluded content - Movies: {BeforeMovies} -> {AfterMovies}, TV: {BeforeTv} -> {AfterTv}",
+                        beforeFilterMovies, trendingMovies.Count, beforeFilterTv, trendingTvShows.Count);
+                }
             }
 
             // Apply result limit
@@ -210,7 +279,7 @@ public sealed class PopulateLibraryTask : IScheduledTask
                         tmdbMovie.ImdbId);
 
                     // Delay to prevent concurrent image processing issues
-                    await Task.Delay(100, cancellationToken);
+                    await Task.Delay(500, cancellationToken);
                 }
                 catch (Exception ex)
                 {

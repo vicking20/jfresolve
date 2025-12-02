@@ -325,6 +325,108 @@ public class TmdbService
         }
     }
 
+    /// <summary>
+    /// Get top rated movies
+    /// </summary>
+    public async Task<List<TmdbMovie>> GetTopRatedMoviesAsync(string apiKey, bool includeAdult = false, int page = 1)
+    {
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            _log.LogWarning("TMDB API key not configured");
+            return new List<TmdbMovie>();
+        }
+
+        try
+        {
+            var url = $"{BaseUrl}/movie/top_rated?api_key={apiKey}&include_adult={includeAdult.ToString().ToLower()}&page={page}";
+
+            _log.LogInformation("Fetching top rated movies (page {Page})", page);
+
+            var client = _httpClientFactory.CreateClient();
+            var response = await client.GetAsync(url);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _log.LogError("TMDB API error: {StatusCode}", response.StatusCode);
+                return new List<TmdbMovie>();
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+            var result = JsonSerializer.Deserialize<TmdbSearchResult<TmdbMovie>>(json);
+
+            var movies = result?.Results ?? new List<TmdbMovie>();
+
+            // Fetch IMDB IDs for each movie
+            foreach (var movie in movies)
+            {
+                var externalIds = await GetExternalIdsAsync(movie.Id, "movie", apiKey);
+                if (externalIds?.ImdbId != null)
+                {
+                    movie.ImdbId = externalIds.ImdbId;
+                    _log.LogDebug("Fetched IMDB ID {ImdbId} for movie '{Title}'", movie.ImdbId, movie.Title);
+                }
+            }
+
+            return movies;
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "Failed to fetch top rated movies");
+            return new List<TmdbMovie>();
+        }
+    }
+
+    /// <summary>
+    /// Get top rated TV shows
+    /// </summary>
+    public async Task<List<TmdbTvShow>> GetTopRatedTvShowsAsync(string apiKey, bool includeAdult = false, int page = 1)
+    {
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            _log.LogWarning("TMDB API key not configured");
+            return new List<TmdbTvShow>();
+        }
+
+        try
+        {
+            var url = $"{BaseUrl}/tv/top_rated?api_key={apiKey}&include_adult={includeAdult.ToString().ToLower()}&page={page}";
+
+            _log.LogInformation("Fetching top rated TV shows (page {Page})", page);
+
+            var client = _httpClientFactory.CreateClient();
+            var response = await client.GetAsync(url);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _log.LogError("TMDB API error: {StatusCode}", response.StatusCode);
+                return new List<TmdbTvShow>();
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+            var result = JsonSerializer.Deserialize<TmdbSearchResult<TmdbTvShow>>(json);
+
+            var tvShows = result?.Results ?? new List<TmdbTvShow>();
+
+            // Fetch IMDB IDs for each TV show
+            foreach (var show in tvShows)
+            {
+                var externalIds = await GetExternalIdsAsync(show.Id, "tv", apiKey);
+                if (externalIds?.ImdbId != null)
+                {
+                    show.ImdbId = externalIds.ImdbId;
+                    _log.LogDebug("Fetched IMDB ID {ImdbId} for TV show '{Name}'", show.ImdbId, show.Name);
+                }
+            }
+
+            return tvShows;
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "Failed to fetch top rated TV shows");
+            return new List<TmdbTvShow>();
+        }
+    }
+
     public async Task<TmdbExternalIds?> GetExternalIdsAsync(int tmdbId, string mediaType, string apiKey)
     {
         if (string.IsNullOrWhiteSpace(apiKey))

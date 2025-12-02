@@ -606,12 +606,13 @@ public class JfresolveManager
 
                 // Queue a refresh for the item itself to ensure it appears in the library UI
                 // This is critical for auto-population to work properly
+                // Relaxed settings to avoid race conditions with image saving
                 var refreshOptions = new MetadataRefreshOptions(new DirectoryService(_fileSystem))
                 {
-                    MetadataRefreshMode = MetadataRefreshMode.FullRefresh,
-                    ImageRefreshMode = MetadataRefreshMode.FullRefresh,
-                    ReplaceAllImages = true,
-                    ReplaceAllMetadata = true,
+                    MetadataRefreshMode = MetadataRefreshMode.ValidationOnly,
+                    ImageRefreshMode = MetadataRefreshMode.ValidationOnly,
+                    ReplaceAllImages = false,
+                    ReplaceAllMetadata = false,
                     ForceSave = true,
                 };
 

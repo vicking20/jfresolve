@@ -374,9 +374,9 @@
                                     id="PopulationSource"
                                     class="emby-select-withcolor emby-select"
                                 >
-                                    <option value="0">
-                                        TMDB (Trending/Popular)
-                                    </option>
+                                    <option value="0">TMDB (Trending)</option>
+                                    <option value="1">TMDB Popular</option>
+                                    <option value="2">TMDB Top Rated</option>
                                 </select>
                                 <div class="fieldDescription">
                                     Source for discovering new content to add to
@@ -401,6 +401,25 @@
                                 <div class="fieldDescription">
                                     Maximum number of new items to add each time
                                     the population task runs. Default: 20.
+                                </div>
+                            </div>
+
+                            <div class="inputContainer">
+                                <label
+                                    class="inputLabel inputLabelUnfocused"
+                                    for="ExclusionList"
+                                    >Excluded TMDB IDs</label
+                                >
+                                <textarea
+                                    id="ExclusionList"
+                                    is="emby-textarea"
+                                    class="emby-textarea"
+                                    rows="3"
+                                    placeholder="12345, 67890"
+                                ></textarea>
+                                <div class="fieldDescription">
+                                    Comma-separated list of TMDB IDs to exclude
+                                    from auto-population (e.g., "10528, 76479").
                                 </div>
                             </div>
 
@@ -605,6 +624,8 @@
                                 document.getElementById(
                                     "PopulationResultLimit",
                                 ).value = config.PopulationResultLimit || 20;
+                                document.getElementById("ExclusionList").value =
+                                    config.ExclusionList || "";
 
                                 // Display last population run
                                 var lastRunDisplay = document.getElementById(
@@ -716,6 +737,10 @@
                                             "PopulationResultLimit",
                                         ).value,
                                     ) || 20;
+                                config.ExclusionList =
+                                    document.getElementById(
+                                        "ExclusionList",
+                                    ).value;
 
                                 console.log("Saving auto-population config:", {
                                     EnableAutoPopulation:

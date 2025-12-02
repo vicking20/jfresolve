@@ -79,6 +79,11 @@ public class PluginConfiguration : BasePluginConfiguration
     /// </summary>
     public DateTime? LastPopulationRun { get; set; } = null;
 
+    /// <summary>
+    /// Comma-separated list of TMDB IDs to exclude from auto-population
+    /// </summary>
+    public string ExclusionList { get; set; } = string.Empty;
+
     // FFmpeg Settings (Gelato pattern)
     /// <summary>
     /// Enable custom FFmpeg settings
@@ -107,7 +112,17 @@ public class PluginConfiguration : BasePluginConfiguration
 public enum PopulationSource
 {
     /// <summary>
-    /// Use TMDB trending/popular content
+    /// Use TMDB trending content (default, same as previous `TMDB` value)
     /// </summary>
-    TMDB = 0
+    TMDB = 0,
+
+    /// <summary>
+    /// Use TMDB popular content (movie/tv popular endpoints)
+    /// </summary>
+    TMDBPopular = 1,
+
+    /// <summary>
+    /// Use TMDB top rated content (movie/tv top_rated endpoints)
+    /// </summary>
+    TMDBTopRated = 2
 }
