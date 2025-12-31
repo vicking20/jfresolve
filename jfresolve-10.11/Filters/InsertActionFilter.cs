@@ -134,7 +134,7 @@ public class InsertActionFilter : IAsyncActionFilter, IOrderedFilter
             return;
         }
 
-        // Get root folder (movie or series)
+        // Get root folder (movie or series) - USE SEARCH PATHS
         var isSeries = metadata is TmdbTvShow;
         var isMovie = metadata is TmdbMovie;
         Folder? root = null;
@@ -145,22 +145,22 @@ public class InsertActionFilter : IAsyncActionFilter, IOrderedFilter
             var tvShow = (TmdbTvShow)metadata;
             if (tvShow.IsAnime())
             {
-                var animeFolder = _manager.TryGetAnimeFolder();
+                var animeFolder = _manager.TryGetAnimeFolderForSearch();
                 if (animeFolder != null)
                 {
                     root = animeFolder;
-                    _log.LogInformation("Jfresolve: Adding anime series '{Name}' to anime folder", tvShow.Name);
+                    _log.LogInformation("Jfresolve: Adding anime series '{Name}' to anime search folder", tvShow.Name);
                 }
                 else
                 {
                     // Fall back to regular series folder if anime folder not configured or unavailable
-                    root = _manager.TryGetSeriesFolder();
-                    _log.LogDebug("Jfresolve: Anime folder not available, using series folder for '{Name}'", tvShow.Name);
+                    root = _manager.TryGetSeriesFolderForSearch();
+                    _log.LogDebug("Jfresolve: Anime folder not available, using series search folder for '{Name}'", tvShow.Name);
                 }
             }
             else
             {
-                root = _manager.TryGetSeriesFolder();
+                root = _manager.TryGetSeriesFolderForSearch();
             }
         }
         else if (isMovie)
@@ -169,27 +169,27 @@ public class InsertActionFilter : IAsyncActionFilter, IOrderedFilter
             var movie = (TmdbMovie)metadata;
             if (movie.IsAnime())
             {
-                var animeFolder = _manager.TryGetAnimeFolder();
+                var animeFolder = _manager.TryGetAnimeFolderForSearch();
                 if (animeFolder != null)
                 {
                     root = animeFolder;
-                    _log.LogInformation("Jfresolve: Adding anime movie '{Title}' to anime folder", movie.Title);
+                    _log.LogInformation("Jfresolve: Adding anime movie '{Title}' to anime search folder", movie.Title);
                 }
                 else
                 {
                     // Fall back to regular movie folder if anime folder not configured or unavailable
-                    root = _manager.TryGetMovieFolder();
-                    _log.LogDebug("Jfresolve: Anime folder not available, using movie folder for '{Title}'", movie.Title);
+                    root = _manager.TryGetMovieFolderForSearch();
+                    _log.LogDebug("Jfresolve: Anime folder not available, using movie search folder for '{Title}'", movie.Title);
                 }
             }
             else
             {
-                root = _manager.TryGetMovieFolder();
+                root = _manager.TryGetMovieFolderForSearch();
             }
         }
         else
         {
-            root = _manager.TryGetMovieFolder();
+            root = _manager.TryGetMovieFolderForSearch();
         }
 
         if (root is null)
@@ -215,15 +215,7 @@ public class InsertActionFilter : IAsyncActionFilter, IOrderedFilter
     /// </summary>
     public BaseItem? FindExistingItem(BaseItem item)
     {
-        var query = new InternalItemsQuery
-        {
-            IncludeItemTypes = new[] { item.GetBaseItemKind() },
-            HasAnyProviderId = item.ProviderIds,
-            Recursive = true,
-            IsDeadPerson = true, // skip filter marker (Gelato pattern)
-        };
-
-        return _library.GetItemList(query).OfType<BaseItem>().FirstOrDefault();
+        return _manager.GetExistingItem(item.ProviderIds, item.GetBaseItemKind());
     }
 
     /// <summary>

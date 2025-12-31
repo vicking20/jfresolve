@@ -27,30 +27,82 @@ public class PluginConfiguration : BasePluginConfiguration
     /// </summary>
     public string AddonManifestUrl { get; set; } = string.Empty;
 
-    // Library Folder Paths (like Gelato)
+    // Library Folder Path Configuration Mode
     /// <summary>
-    /// Path to the movie library folder (e.g., /data/movies)
+    /// Path configuration mode: Simple (same paths for search and auto-populate) or Advanced (separate paths)
+    /// </summary>
+    public PathConfigMode PathMode { get; set; } = PathConfigMode.Simple;
+
+    // Simple Mode Paths (backward compatible)
+    /// <summary>
+    /// Path to the movie library folder in Simple mode (e.g., /data/movies)
+    /// Used for both search results and auto-populated content
     /// This should be an existing Jellyfin library folder
     /// </summary>
     public string MoviePath { get; set; } = string.Empty;
 
     /// <summary>
-    /// Path to the TV series library folder (e.g., /data/tvseries)
+    /// Path to the TV series library folder in Simple mode (e.g., /data/tvseries)
+    /// Used for both search results and auto-populated content
     /// This should be an existing Jellyfin library folder
     /// </summary>
     public string SeriesPath { get; set; } = string.Empty;
 
     /// <summary>
-    /// Enable separate anime folder
+    /// Enable separate anime folder in Simple mode
     /// When enabled, anime shows (TMDB genre ID 16) will be added to the anime folder instead of the main series folder
     /// </summary>
     public bool EnableAnimeFolder { get; set; } = false;
 
     /// <summary>
-    /// Path to the anime library folder (e.g., /data/anime)
+    /// Path to the anime library folder in Simple mode (e.g., /data/anime)
     /// Only used when EnableAnimeFolder is true
     /// </summary>
     public string AnimePath { get; set; } = string.Empty;
+
+    // Advanced Mode Paths - Search
+    /// <summary>
+    /// Path to the movie search results folder in Advanced mode (e.g., /data/movies-search)
+    /// Only used when PathMode = Advanced
+    /// </summary>
+    public string MovieSearchPath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Path to the series search results folder in Advanced mode (e.g., /data/series-search)
+    /// Only used when PathMode = Advanced
+    /// </summary>
+    public string SeriesSearchPath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Path to the anime search results folder in Advanced mode (e.g., /data/anime-search)
+    /// Only used when PathMode = Advanced and EnableAnimeFolderAdvanced = true
+    /// </summary>
+    public string AnimeSearchPath { get; set; } = string.Empty;
+
+    // Advanced Mode Paths - Auto-Populate
+    /// <summary>
+    /// Path to the movie auto-populate folder in Advanced mode (e.g., /data/movies-auto)
+    /// Only used when PathMode = Advanced
+    /// </summary>
+    public string MovieAutoPopulatePath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Path to the series auto-populate folder in Advanced mode (e.g., /data/series-auto)
+    /// Only used when PathMode = Advanced
+    /// </summary>
+    public string SeriesAutoPopulatePath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Path to the anime auto-populate folder in Advanced mode (e.g., /data/anime-auto)
+    /// Only used when PathMode = Advanced and EnableAnimeFolderAdvanced = true
+    /// </summary>
+    public string AnimeAutoPopulatePath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Enable separate anime folders in Advanced mode
+    /// When enabled, anime content will use separate search and auto-populate paths
+    /// </summary>
+    public bool EnableAnimeFolderAdvanced { get; set; } = false;
 
     // TMDB Settings
     public bool IncludeAdult { get; set; } = false;
@@ -65,14 +117,57 @@ public class PluginConfiguration : BasePluginConfiguration
     public bool EnableAutoPopulation { get; set; } = false;
 
     /// <summary>
-    /// Source for library population content
+    /// Source for library population content (deprecated - use boolean flags below)
+    /// Kept for backward compatibility
     /// </summary>
     public PopulationSource PopulationSource { get; set; } = PopulationSource.TMDB;
+
+    /// <summary>
+    /// Enable TMDB Trending content source for auto-population
+    /// </summary>
+    public bool UseTrendingSource { get; set; } = true;
+
+    /// <summary>
+    /// Enable TMDB Popular content source for auto-population
+    /// </summary>
+    public bool UsePopularSource { get; set; } = false;
+
+    /// <summary>
+    /// Enable TMDB Top Rated content source for auto-population
+    /// </summary>
+    public bool UseTopRatedSource { get; set; } = false;
 
     /// <summary>
     /// Maximum number of items to add per population run
     /// </summary>
     public int PopulationResultLimit { get; set; } = 20;
+
+    // Virtual Versioning Settings
+    /// <summary>
+    /// Enable 4K/2160p version of virtual items
+    /// </summary>
+    public bool Enable4KVersion { get; set; } = false;
+
+    /// <summary>
+    /// Enable 1080p version of virtual items
+    /// </summary>
+    public bool Enable1080pVersion { get; set; } = false;
+
+    /// <summary>
+    /// Enable 720p version of virtual items
+    /// </summary>
+    public bool Enable720pVersion { get; set; } = false;
+
+    /// <summary>
+    /// Enable "Unknown" (first available) version of virtual items
+    /// </summary>
+    public bool EnableUnknownVersion { get; set; } = false;
+
+    /// <summary>
+    /// Maximum number of items to add for each enabled quality
+    /// Allowed range: 1-10
+    /// </summary>
+    public int MaxItemsPerQuality { get; set; } = 1;
 
     /// <summary>
     /// Last time library population was run
@@ -104,6 +199,33 @@ public class PluginConfiguration : BasePluginConfiguration
     /// Only used when EnableCustomFFmpegSettings is true
     /// </summary>
     public string FFmpegProbeSize { get; set; } = "40M";
+
+    // Failover Settings
+    /// <summary>
+    /// Enable automatic failover for movies
+    /// When enabled, if a stream fails, the plugin will try the next available quality/index
+    /// </summary>
+    public bool EnableMovieFailover { get; set; } = false;
+
+    /// <summary>
+    /// Enable automatic failover for TV shows
+    /// When enabled, if a stream fails, the plugin will try the next available quality/index
+    /// </summary>
+    public bool EnableShowFailover { get; set; } = false;
+
+    /// <summary>
+    /// Grace period in seconds before considering a stream as failed
+    /// During this time, the same link will be returned even if multiple requests come in
+    /// This allows time for buffering/loading. Default: 45 seconds
+    /// </summary>
+    public int FailoverGracePeriodSeconds { get; set; } = 45;
+
+    /// <summary>
+    /// Failover window in seconds
+    /// After this time, the failover state is reset and assumes previous playback was successful
+    /// Default: 120 seconds (2 minutes)
+    /// </summary>
+    public int FailoverWindowSeconds { get; set; } = 120;
 }
 
 /// <summary>
@@ -125,4 +247,20 @@ public enum PopulationSource
     /// Use TMDB top rated content (movie/tv top_rated endpoints)
     /// </summary>
     TMDBTopRated = 2
+}
+
+/// <summary>
+/// Path configuration mode
+/// </summary>
+public enum PathConfigMode
+{
+    /// <summary>
+    /// Simple mode: Same paths for search results and auto-populated content (backward compatible)
+    /// </summary>
+    Simple = 0,
+
+    /// <summary>
+    /// Advanced mode: Separate paths for search results vs auto-populated content
+    /// </summary>
+    Advanced = 1
 }

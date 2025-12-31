@@ -8,6 +8,8 @@ using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Controller.Providers;
+using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Tasks;
 using Microsoft.Extensions.Logging;
 
@@ -92,60 +94,98 @@ public sealed class PopulateLibraryTask : IScheduledTask
             var seriesAdded = 0;
             var skippedDuplicates = 0;
 
-            // Fetch trending/popular content from TMDB
-            // For now, we'll use trending content with "week" time window
+            // Fetch content from multiple sources based on configuration
             progress.Report(10);
 
-            // Choose TMDB endpoint based on configuration
-            List<TmdbMovie> trendingMovies;
-            switch (config.PopulationSource)
+            var allMovies = new List<TmdbMovie>();
+            var allTvShows = new List<TmdbTvShow>();
+
+            // Fetch from Trending source if enabled
+            if (config.UseTrendingSource)
             {
-                case Configuration.PopulationSource.TMDBPopular:
-                    _log.LogInformation("Jfresolve: Fetching popular movies from TMDB...");
-                    trendingMovies = await _tmdbService.GetPopularMoviesAsync(
-                        config.TmdbApiKey,
-                        config.IncludeAdult);
-                    break;
-                case Configuration.PopulationSource.TMDBTopRated:
-                    _log.LogInformation("Jfresolve: Fetching top rated movies from TMDB...");
-                    trendingMovies = await _tmdbService.GetTopRatedMoviesAsync(
-                        config.TmdbApiKey,
-                        config.IncludeAdult);
-                    break;
-                default:
-                    _log.LogInformation("Jfresolve: Fetching trending movies from TMDB...");
-                    trendingMovies = await _tmdbService.GetTrendingMoviesAsync(
-                        config.TmdbApiKey,
-                        "week",
-                        config.IncludeAdult);
-                    break;
+                _log.LogInformation("Jfresolve: Fetching trending content from TMDB...");
+                var trendingMovies = await _tmdbService.GetTrendingMoviesAsync(
+                    config.TmdbApiKey,
+                    "week",
+                    config.IncludeAdult);
+                var trendingTvShows = await _tmdbService.GetTrendingTvShowsAsync(
+                    config.TmdbApiKey,
+                    "week",
+                    config.IncludeAdult);
+
+                allMovies.AddRange(trendingMovies);
+                allTvShows.AddRange(trendingTvShows);
+                _log.LogInformation("Jfresolve: Added {MovieCount} trending movies and {TvCount} trending TV shows",
+                    trendingMovies.Count, trendingTvShows.Count);
             }
 
-            progress.Report(30);
+            progress.Report(25);
 
-            List<TmdbTvShow> trendingTvShows;
-            switch (config.PopulationSource)
+            // Fetch from Popular source if enabled
+            if (config.UsePopularSource)
             {
-                case Configuration.PopulationSource.TMDBPopular:
-                    _log.LogInformation("Jfresolve: Fetching popular TV shows from TMDB...");
-                    trendingTvShows = await _tmdbService.GetPopularTvShowsAsync(
-                        config.TmdbApiKey,
-                        config.IncludeAdult);
-                    break;
-                case Configuration.PopulationSource.TMDBTopRated:
-                    _log.LogInformation("Jfresolve: Fetching top rated TV shows from TMDB...");
-                    trendingTvShows = await _tmdbService.GetTopRatedTvShowsAsync(
-                        config.TmdbApiKey,
-                        config.IncludeAdult);
-                    break;
-                default:
-                    _log.LogInformation("Jfresolve: Fetching trending TV shows from TMDB...");
-                    trendingTvShows = await _tmdbService.GetTrendingTvShowsAsync(
-                        config.TmdbApiKey,
-                        "week",
-                        config.IncludeAdult);
-                    break;
+                _log.LogInformation("Jfresolve: Fetching popular content from TMDB...");
+                var popularMovies = await _tmdbService.GetPopularMoviesAsync(
+                    config.TmdbApiKey,
+                    config.IncludeAdult);
+                var popularTvShows = await _tmdbService.GetPopularTvShowsAsync(
+                    config.TmdbApiKey,
+                    config.IncludeAdult);
+
+                allMovies.AddRange(popularMovies);
+                allTvShows.AddRange(popularTvShows);
+                _log.LogInformation("Jfresolve: Added {MovieCount} popular movies and {TvCount} popular TV shows",
+                    popularMovies.Count, popularTvShows.Count);
             }
+
+            progress.Report(40);
+
+            // Fetch from Top Rated source if enabled
+            if (config.UseTopRatedSource)
+            {
+                _log.LogInformation("Jfresolve: Fetching top rated content from TMDB...");
+                var topRatedMovies = await _tmdbService.GetTopRatedMoviesAsync(
+                    config.TmdbApiKey,
+                    config.IncludeAdult);
+                var topRatedTvShows = await _tmdbService.GetTopRatedTvShowsAsync(
+                    config.TmdbApiKey,
+                    config.IncludeAdult);
+
+                allMovies.AddRange(topRatedMovies);
+                allTvShows.AddRange(topRatedTvShows);
+                _log.LogInformation("Jfresolve: Added {MovieCount} top rated movies and {TvCount} top rated TV shows",
+                    topRatedMovies.Count, topRatedTvShows.Count);
+            }
+
+            // If no sources are enabled, default to Trending for backward compatibility
+            if (!config.UseTrendingSource && !config.UsePopularSource && !config.UseTopRatedSource)
+            {
+                _log.LogWarning("Jfresolve: No content sources enabled, defaulting to Trending");
+                var defaultMovies = await _tmdbService.GetTrendingMoviesAsync(
+                    config.TmdbApiKey,
+                    "week",
+                    config.IncludeAdult);
+                var defaultTvShows = await _tmdbService.GetTrendingTvShowsAsync(
+                    config.TmdbApiKey,
+                    "week",
+                    config.IncludeAdult);
+
+                allMovies.AddRange(defaultMovies);
+                allTvShows.AddRange(defaultTvShows);
+            }
+
+            // Remove duplicates (same TMDB ID might appear in multiple sources)
+            var moviesToProcess = allMovies
+                .GroupBy(m => m.Id)
+                .Select(g => g.First())
+                .ToList();
+            var tvShowsToProcess = allTvShows
+                .GroupBy(tv => tv.Id)
+                .Select(g => g.First())
+                .ToList();
+
+            _log.LogInformation("Jfresolve: Total unique content after deduplication: {MovieCount} movies, {TvCount} TV shows",
+                moviesToProcess.Count, tvShowsToProcess.Count);
 
             progress.Report(50);
 
@@ -153,16 +193,16 @@ public sealed class PopulateLibraryTask : IScheduledTask
             if (config.FilterUnreleased)
             {
                 var cutoffDate = DateTime.UtcNow.AddDays(-config.UnreleasedBufferDays);
-                var beforeFilterMovies = trendingMovies.Count;
-                var beforeFilterTv = trendingTvShows.Count;
+                var beforeFilterMovies = moviesToProcess.Count;
+                var beforeFilterTv = tvShowsToProcess.Count;
 
-                trendingMovies = trendingMovies.Where(m =>
+                moviesToProcess = moviesToProcess.Where(m =>
                 {
                     var releaseDate = m.GetReleaseDateTime();
                     return releaseDate.HasValue && releaseDate.Value <= cutoffDate;
                 }).ToList();
 
-                trendingTvShows = trendingTvShows.Where(tv =>
+                tvShowsToProcess = tvShowsToProcess.Where(tv =>
                 {
                     var releaseDate = tv.GetFirstAirDateTime();
                     return releaseDate.HasValue && releaseDate.Value <= cutoffDate;
@@ -170,39 +210,39 @@ public sealed class PopulateLibraryTask : IScheduledTask
 
                 _log.LogInformation(
                     "Jfresolve: Filtered unreleased content - Movies: {BeforeMovies} -> {AfterMovies}, TV: {BeforeTv} -> {AfterTv}",
-                    beforeFilterMovies, trendingMovies.Count, beforeFilterTv, trendingTvShows.Count);
+                    beforeFilterMovies, moviesToProcess.Count, beforeFilterTv, tvShowsToProcess.Count);
             }
 
             // Apply exclusion list filter
             if (excludedIds.Count > 0)
             {
-                var beforeFilterMovies = trendingMovies.Count;
-                var beforeFilterTv = trendingTvShows.Count;
+                var beforeFilterMovies = moviesToProcess.Count;
+                var beforeFilterTv = tvShowsToProcess.Count;
 
-                trendingMovies = trendingMovies.Where(m => !excludedIds.Contains(m.Id)).ToList();
-                trendingTvShows = trendingTvShows.Where(tv => !excludedIds.Contains(tv.Id)).ToList();
+                moviesToProcess = moviesToProcess.Where(m => !excludedIds.Contains(m.Id)).ToList();
+                tvShowsToProcess = tvShowsToProcess.Where(tv => !excludedIds.Contains(tv.Id)).ToList();
 
-                if (trendingMovies.Count < beforeFilterMovies || trendingTvShows.Count < beforeFilterTv)
+                if (moviesToProcess.Count < beforeFilterMovies || tvShowsToProcess.Count < beforeFilterTv)
                 {
                     _log.LogInformation(
                         "Jfresolve: Filtered excluded content - Movies: {BeforeMovies} -> {AfterMovies}, TV: {BeforeTv} -> {AfterTv}",
-                        beforeFilterMovies, trendingMovies.Count, beforeFilterTv, trendingTvShows.Count);
+                        beforeFilterMovies, moviesToProcess.Count, beforeFilterTv, tvShowsToProcess.Count);
                 }
             }
 
             // Apply result limit
-            var moviesToAdd = trendingMovies.Take(config.PopulationResultLimit / 2).ToList();
-            var tvShowsToAdd = trendingTvShows.Take(config.PopulationResultLimit / 2).ToList();
+            var moviesToAdd = moviesToProcess.Take(config.PopulationResultLimit / 2).ToList();
+            var tvShowsToAdd = tvShowsToProcess.Take(config.PopulationResultLimit / 2).ToList();
 
             _log.LogInformation(
                 "Jfresolve: Retrieved {MovieCount} movies and {TvCount} TV shows from TMDB",
                 moviesToAdd.Count,
                 tvShowsToAdd.Count);
 
-            // Get the appropriate folders
-            var movieFolder = _jfresolveManager.TryGetMovieFolder();
-            var seriesFolder = _jfresolveManager.TryGetSeriesFolder();
-            var animeFolder = config.EnableAnimeFolder ? _jfresolveManager.TryGetAnimeFolder() : null;
+            // Get the appropriate folders - USE AUTO-POPULATE PATHS
+            var movieFolder = _jfresolveManager.TryGetMovieFolderForAutoPopulate();
+            var seriesFolder = _jfresolveManager.TryGetSeriesFolderForAutoPopulate();
+            var animeFolder = _jfresolveManager.TryGetAnimeFolderForAutoPopulate();
 
             if (movieFolder == null && moviesToAdd.Any())
             {
@@ -271,7 +311,7 @@ public sealed class PopulateLibraryTask : IScheduledTask
                     _jfresolveManager.RemoveTmdbMetadata(movie.Id);
 
                     moviesAdded++;
-                    _log.LogInformation(
+                    _log.LogDebug(
                         "Jfresolve: Added movie '{Title}' to {Folder} (TMDB: {TmdbId}, IMDB: {ImdbId})",
                         tmdbMovie.Title,
                         targetFolder == animeFolder ? "anime folder" : "movie folder",
@@ -346,7 +386,7 @@ public sealed class PopulateLibraryTask : IScheduledTask
                     _jfresolveManager.RemoveTmdbMetadata(series.Id);
 
                     seriesAdded++;
-                    _log.LogInformation(
+                    _log.LogDebug(
                         "Jfresolve: Added TV show '{Name}' to {Folder} (TMDB: {TmdbId}, IMDB: {ImdbId})",
                         tmdbTvShow.Name,
                         targetFolder == animeFolder ? "anime folder" : "series folder",
@@ -354,7 +394,8 @@ public sealed class PopulateLibraryTask : IScheduledTask
                         tmdbTvShow.ImdbId);
 
                     // Delay to prevent concurrent image processing issues
-                    await Task.Delay(100, cancellationToken);
+                    // TV shows create many items (series + seasons + episodes), so use longer delay
+                    await Task.Delay(1000, cancellationToken);
                 }
                 catch (Exception ex)
                 {
@@ -383,6 +424,40 @@ public sealed class PopulateLibraryTask : IScheduledTask
                 moviesAdded,
                 seriesAdded,
                 skippedDuplicates);
+            
+            // Final UI refresh for containers to ensure everything shows up
+            try
+            {
+                var options = new MetadataRefreshOptions(new DirectoryService(_jfresolveManager.FileSystem))
+                {
+                    MetadataRefreshMode = MetadataRefreshMode.None,
+                    ImageRefreshMode = MetadataRefreshMode.None,
+                    ReplaceAllImages = false,
+                    ReplaceAllMetadata = false,
+                    ForceSave = true
+                };
+
+                if (movieFolder != null) 
+                {
+                    await _jfresolveManager.Provider.RefreshFullItem(movieFolder, options, cancellationToken);
+                    await movieFolder.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, cancellationToken);
+                }
+                if (seriesFolder != null) 
+                {
+                    await _jfresolveManager.Provider.RefreshFullItem(seriesFolder, options, cancellationToken);
+                    await seriesFolder.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, cancellationToken);
+                }
+                if (animeFolder != null) 
+                {
+                    await _jfresolveManager.Provider.RefreshFullItem(animeFolder, options, cancellationToken);
+                    await animeFolder.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, cancellationToken);
+                }
+                _log.LogDebug("Jfresolve: Final UI notifications and refreshes sent for all population folders");
+            }
+            catch (Exception ex)
+            {
+                _log.LogWarning(ex, "Jfresolve: Failed to send final UI notifications");
+            }
         }
         catch (Exception ex)
         {

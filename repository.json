@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/vicking20/jfresolve/main/jfresolve.png",
     "versions": [
       {
+        "version": "1.0.0.5",
+        "changelog": "Added failover system for dead links with configurable time windows. Code cleanup and optimization. Improved quality version support with individual stream probing.",
+        "sourceUrl": "https://github.com/vicking20/jfresolve/releases/download/10.11.1.0.0.5/jfresolve.zip",
+        "checksum": "cd720cb021de832e50e81b374e22b79f",
+        "targetAbi": "10.11.0.0",
+        "timestamp": "2026-01-01T12:00:00Z"
+      },
+      {
         "version": "1.0.0.4",
         "changelog": "Added new classifications for auto populate. Thanks to @Ajayrajasekaran",
         "sourceUrl": "https://github.com/vicking20/jfresolve/releases/download/10.11.1.0.0.4/jfresolve.zip",

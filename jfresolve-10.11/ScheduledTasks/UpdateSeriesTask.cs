@@ -185,13 +185,15 @@ public sealed class UpdateSeriesTask : IScheduledTask
                     break;
                 }
 
+                var versionTasks = _jfresolveManager.GetEnabledVersioningTasks();
                 await _jfresolveManager.CreateSeasonWithEpisodes(
                     series,
                     tmdbShow,
                     newSeason,
                     series.PresentationUniqueKey!,
                     config,
-                    cancellationToken);
+                    cancellationToken,
+                    versionTasks);
 
                 hasUpdates = true;
             }
@@ -244,14 +246,20 @@ public sealed class UpdateSeriesTask : IScheduledTask
                         break;
                     }
 
-                    await _jfresolveManager.CreateEpisode(
-                        series,
-                        existingSeason,
-                        tmdbShow,
-                        newEpisode,
-                        series.PresentationUniqueKey!,
-                        config,
-                        cancellationToken);
+                    var versionTasks = _jfresolveManager.GetEnabledVersioningTasks();
+                    foreach (var task in versionTasks)
+                    {
+                        await _jfresolveManager.CreateEpisode(
+                            series,
+                            existingSeason,
+                            tmdbShow,
+                            newEpisode,
+                            series.PresentationUniqueKey!,
+                            config,
+                            cancellationToken,
+                            task.Quality,
+                            task.Index);
+                    }
 
                     hasUpdates = true;
                 }

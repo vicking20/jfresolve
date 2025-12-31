@@ -24,8 +24,7 @@ public sealed class JfresolveSeriesProvider
     private readonly JfresolveManager _manager;
     private readonly TmdbService _tmdbService;
     private readonly IProviderManager _provider;
-    private readonly ConcurrentDictionary<Guid, DateTime> _syncCache = new();
-    private static readonly TimeSpan CacheExpiry = TimeSpan.FromMinutes(2);
+    // Cache is now handled centrally in JfresolveManager
 
     public JfresolveSeriesProvider(
         ILogger<JfresolveSeriesProvider> logger,
@@ -64,19 +63,8 @@ public sealed class JfresolveSeriesProvider
             return;
         }
 
-        // Avoid re-syncing too frequently
-        var now = DateTime.UtcNow;
-        if (_syncCache.TryGetValue(series.Id, out var lastSync))
-        {
-            if (now - lastSync < CacheExpiry)
-            {
-                _log.LogDebug("Jfresolve: Skipping {Name} - synced {Seconds} seconds ago",
-                    series.Name, (now - lastSync).TotalSeconds);
-                return;
-            }
-        }
-
-        _syncCache[series.Id] = now;
+        // Locking and cache-per-item checks are now handled inside JfresolveManager.CreateSeasonsAndEpisodesForSeries
+        // to prevent race conditions between the provider and scheduled tasks.
 
         try
         {

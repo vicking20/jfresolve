@@ -1,7 +1,7 @@
 ---
 name: "Jfresolve"
 guid: "506F18B8-5DAD-4CD3-B9A0-F7ED933E9939"
-version: "1.0.0.4"
+version: "1.0.0.5"
 targetAbi: "10.11.0.0"
 framework: "net9.0"
 overview: "Integrates remote streaming (Real-Debrid, TMDb, etc.) with stremio into Jellyfin."

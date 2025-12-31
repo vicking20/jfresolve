@@ -44,26 +44,50 @@ public sealed class PurgeJfresolveTask : IScheduledTask
     {
         _log.LogInformation("Jfresolve: Starting purge of all Jfresolve items");
 
-        var movieFolder = _manager.TryGetMovieFolder();
-        var seriesFolder = _manager.TryGetSeriesFolder();
-        var animeFolder = _manager.TryGetAnimeFolder();
-
+        var allItemIds = new HashSet<Guid>(); // Use HashSet to automatically deduplicate items by ID
         var allChildren = new List<MediaBrowser.Controller.Entities.BaseItem>();
+        var processedFolders = new HashSet<Guid>(); // Track folders to avoid duplicate logging
 
-        if (movieFolder != null)
+        // Helper function to add folder items
+        void AddFolderItems(MediaBrowser.Controller.Entities.Folder? folder, string folderType)
         {
-            allChildren.AddRange(movieFolder.GetRecursiveChildren());
+            if (folder == null) return;
+
+            bool isNewFolder = !processedFolders.Contains(folder.Id);
+            if (isNewFolder)
+            {
+                processedFolders.Add(folder.Id);
+            }
+
+            var items = folder.GetRecursiveChildren();
+            int addedCount = 0;
+
+            foreach (var item in items)
+            {
+                if (allItemIds.Add(item.Id))
+                {
+                    allChildren.Add(item);
+                    addedCount++;
+                }
+            }
+
+            if (isNewFolder || addedCount > 0)
+            {
+                _log.LogInformation("Jfresolve: Checking {Count} items in {FolderType} folder '{Name}' ({Added} unique)",
+                    items.Count, folderType, folder.Name, addedCount);
+            }
         }
 
-        if (seriesFolder != null)
-        {
-            allChildren.AddRange(seriesFolder.GetRecursiveChildren());
-        }
+        // Check all possible folder paths (Simple and Advanced mode)
+        // Simple mode / Auto-populate paths
+        AddFolderItems(_manager.TryGetMovieFolderForAutoPopulate(), "movie auto-populate");
+        AddFolderItems(_manager.TryGetSeriesFolderForAutoPopulate(), "series auto-populate");
+        AddFolderItems(_manager.TryGetAnimeFolderForAutoPopulate(), "anime auto-populate");
 
-        if (animeFolder != null)
-        {
-            allChildren.AddRange(animeFolder.GetRecursiveChildren());
-        }
+        // Search paths (Advanced mode)
+        AddFolderItems(_manager.TryGetMovieFolderForSearch(), "movie search");
+        AddFolderItems(_manager.TryGetSeriesFolderForSearch(), "series search");
+        AddFolderItems(_manager.TryGetAnimeFolderForSearch(), "anime search");
 
         int total = allChildren.Count;
         int deleted = 0;

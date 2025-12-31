@@ -20,14 +20,15 @@ A Jellyfin plugin that integrates external streaming sources (Stremio addons) fr
 
 ## Features
 
-- 🔍 **External Search Results**: Search TMDB and display results from external streaming sources.
-- 📚 **Library Population**: Automatically populate your Jellyfin library with popular and trending content from TMDB.
-- 🎬 **Movie & Series Support**: Full support for movies, TV series, and anime.
-- 🎌 **Anime Categorization**: Optional dedicated anime library with automatic genre-based routing.
-- 🎨 **FFmpeg Tuning**: Configurable FFmpeg settings for better remote stream detection.
-- ⏰ **Scheduled Tasks**: Automate library population, series updates, and content purging.
-- 🔧 **Flexible Configuration**: Comprehensive settings for customization.
-- 💎 **Preferred Quality Selection**: Choose your preferred stream quality (4K, 1080p, etc.) and the plugin will automatically select the best stream for you.
+- **External Search Results**: Search TMDB and display results from external streaming sources.
+- **Library Population**: Automatically populate your Jellyfin library with popular and trending content from TMDB.
+- **Movie & Series Support**: Full support for movies, TV series, and anime.
+- **Anime Categorization**: Optional dedicated anime library with automatic genre-based routing.
+- **FFmpeg Tuning**: Configurable FFmpeg settings for better remote stream detection.
+- **Scheduled Tasks**: Automate library population, series updates, and content purging.
+- **Flexible Configuration**: Comprehensive settings for customization.
+- **Preferred Quality Selection**: Choose your preferred stream quality (4K, 1080p, etc.) and the plugin will automatically select the best stream for you.
+- **Failover System**: EXPERIMENTAL: Automatic retry for dead links with configurable time windows - prevents repeated failures on the same dead stream.
 
 ## Benefits
 
@@ -65,14 +66,18 @@ A Jellyfin plugin that integrates external streaming sources (Stremio addons) fr
 
 ### Optional Settings
 
-- **Enable Search Interception**: When enabled, search queries will return results frome xternal search provider.
+- **Enable Search Interception**: When enabled, search queries will return results from external search provider.
 - **Preferred Stream Quality**: Select preferred quality when multiple stream options are available. Auto will select the highest quality stream.
 - **Search Result Limit**: Maximum number of results to return from TMDB searches.
 - **Unreleased Buffer Days**: Number of days before official release date to consider content as "released".
 - **Enable Separate Anime Folder**: When enabled, anime shows (TMDB genre ID 16) will be added to a separate anime folder instead of the main series folder.
-- **Enable Auto Library Population**: Automatically populate your library with trending/popular content.
+- **Enable Auto Library Population**: Automatically populate your library with trending/popular/top rated content.
 - **Items Per Run**: Maximum number of new items to add each time the population task runs.
 - **Enable Custom FFmpeg Settings**: When disabled, Jellyfin's default FFmpeg settings will be used. Enable this to customize probe and analyze settings for better stream detection.
+- **Enable Movie Failover**: Automatically retry failed movie streams with alternative quality versions.
+- **Enable Show Failover**: Automatically retry failed TV show streams with alternative quality versions.
+- **Failover Grace Period**: Time in seconds to wait before retrying a failed stream (prevents immediate retry spam).
+- **Failover Window**: Time in seconds during which a failed stream won't be retried again (prevents continuous failures).
 
 ## Scheduled Tasks
 
