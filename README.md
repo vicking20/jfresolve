@@ -50,8 +50,7 @@ Similar project: If you aren't interested in using the plugin, you can instead u
 
 ## Installation
 
-1. Add the link to the plugin to your Jellyfin server's plugin repository: `https://raw.githubusercontent.com/<YOUR_USERNAME>/<YOUR_REPO>/main/repository.json`
-   (Replace `<YOUR_USERNAME>` and `<YOUR_REPO>` with your own)
+1. Add the link to the plugin to your Jellyfin server's plugin repository: `https://raw.githubusercontent.com/vicking20/jfresolve/refs/heads/main/repository.json`
 2. Install and configure your plugin. Tested with Torrentio, TorrentioRD, Aiostreams, MediaFusion. Your plugin needs to have your real debrid key setup.
 3. During the first time configuration or after adding a new library path, after saving your settings, you should restart Jellyfin, then trigger a library refresh for changes to take effect.
 4. If you have used an older version of Jfresolve older than 1.0.0.3, you need to uninstall the older version.
@@ -92,23 +91,7 @@ Jfresolve comes with three scheduled tasks to automate your library management:
 
 To configure the scheduled tasks, go to **Dashboard → Scheduled Tasks** in your Jellyfin server.
 
-## Releases on your Fork
-
-To release a new version from your fork:
-
-1. Update the version in `jfresolve-10.11/Jfresolve.csproj`.
-2. Commit your changes.
-3. Push a tag starting with `v` (e.g., `v1.0.0.6`).
-   ```bash
-   git tag v1.0.0.6
-   git push origin v1.0.0.6
-   ```
-4. A GitHub Action will automatically:
-   - Build the plugin.
-   - Create a release with `jfresolve.zip`.
-   - Update `repository.json` with the new version and your repository URLs.
-
-## Building from Source (Manual)
+## Building from Source
 
 ### Prerequisites
 
