@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/vicking20/jfresolve/main/jfresolve.png",
     "versions": [
       {
+        "version": "1.0.0.14",
+        "changelog": "Fixed auto-population hanging indefinitely (series lock was never released). Streams now resume automatically when the debrid host drops the connection (fixes 4K remux playback failures). Preferred quality is now a ceiling: falls back to the next lower quality instead of jumping to 4K. Added optional .strm file mode for third-party clients like Infuse. Clearer logging for 403 errors from the addon or stream host. Requires Jellyfin 10.11.6+.",
+        "sourceUrl": "https://github.com/vicking20/jfresolve/releases/download/10.11.1.0.0.14/jfresolve.zip",
+        "checksum": "a6c8fec4abe906251b4bc1a6fefaf03f",
+        "targetAbi": "10.11.6.0",
+        "timestamp": "2026-10-03T12:00:00Z"
+      },
+      {
         "version": "1.0.0.13",
         "changelog": "Fixed plugin image not loading: Added embedded resource for jfresolve.png and created Image endpoint to serve it. Added route handling for both /Plugins/Jfresolve/Image and /Plugins/{guid}/{version}/Image patterns. Thanks to @ dennisstorm-hass",
         "sourceUrl": "https://github.com/vicking20/jfresolve/releases/download/10.11.1.0.0.13/jfresolve.zip",

@@ -206,6 +206,31 @@
                                         virtual items from TMDB.
                                     </div>
                                 </div>
+                                <div class="checkboxContainer field-group">
+                                    <label
+                                        class="emby-checkbox-label"
+                                        for="WriteStrmFiles"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            is="emby-checkbox"
+                                            id="WriteStrmFiles"
+                                        />
+                                        <span class="checkbox-label-text"
+                                            >Write .strm Files</span
+                                        >
+                                    </label>
+                                    <div class="field-description">
+                                        Write .strm files into the library
+                                        folders instead of adding items directly
+                                        to the database. Needed for clients like
+                                        Infuse. Jellyfin Server URL must be
+                                        reachable from your clients (not
+                                        localhost). Run "Clear All Jfresolve
+                                        Items" before switching to avoid
+                                        duplicates.
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- Path Configuration -->
@@ -968,6 +993,8 @@
                                 config.AddonManifestUrl || "";
                             document.getElementById("EnableSearch").checked =
                                 config.EnableSearch !== false;
+                            document.getElementById("WriteStrmFiles").checked =
+                                config.WriteStrmFiles === true;
                             document.getElementById("PreferredQuality").value =
                                 config.PreferredQuality || "Auto";
 
@@ -1114,6 +1141,8 @@
                                 ).value;
                             config.EnableSearch =
                                 document.getElementById("EnableSearch").checked;
+                            config.WriteStrmFiles =
+                                document.getElementById("WriteStrmFiles").checked;
                             config.PreferredQuality =
                                 document.getElementById(
                                     "PreferredQuality",

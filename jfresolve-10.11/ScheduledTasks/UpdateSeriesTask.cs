@@ -55,6 +55,18 @@ public sealed class UpdateSeriesTask : IScheduledTask
 
         _log.LogInformation("Jfresolve: Starting series update check");
 
+        if (_jfresolveManager.IsStrmMode)
+        {
+            var written = await _jfresolveManager.UpdateStrmSeriesAsync(cancellationToken);
+            _log.LogInformation("Jfresolve: .strm update complete - {Count} files written", written);
+            if (written > 0)
+            {
+                _jfresolveManager.QueueStrmScan();
+            }
+            progress.Report(100);
+            return;
+        }
+
         try
         {
             // Get all Jfresolve series from the library

@@ -201,7 +201,12 @@ public class InsertActionFilter : IAsyncActionFilter, IOrderedFilter
 
         // Insert the item (Gelato pattern: InsertMetaAsync)
         var baseItem = await InsertMetaAsync(guid, root, metadata);
-        if (baseItem is not null)
+        if (_manager.IsStrmMode)
+        {
+            // Item will appear once the library scan picks up the new .strm files
+            _manager.QueueStrmScan();
+        }
+        else if (baseItem is not null)
         {
             _manager.ReplaceGuid(ctx, baseItem.Id);
             _manager.RemoveTmdbMetadata(guid);

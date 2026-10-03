@@ -124,6 +124,14 @@ public sealed class PurgeJfresolveTask : IScheduledTask
             progress?.Report(Math.Min(100.0, (double)(deleted + skipped) / total * 100.0));
         }
 
+        // Remove plugin-written .strm folders (STRM mode, or left over from it)
+        var strmDeleted = _manager.PurgeStrmFolders();
+        if (strmDeleted > 0)
+        {
+            _log.LogInformation("Jfresolve: Deleted {Count} .strm folders", strmDeleted);
+            _manager.QueueStrmScan();
+        }
+
         // Clear metadata cache
         _log.LogInformation("Jfresolve: Clearing metadata cache");
         // Note: Gelato has a ClearCache method, we could add one if needed

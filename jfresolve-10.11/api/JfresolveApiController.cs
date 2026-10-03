@@ -2,9 +2,12 @@ using System;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Reflection;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -120,7 +123,18 @@ public class JfresolveApiController : ControllerBase
             var addonHttpClient = _httpClientFactory.CreateClient();
             addonHttpClient.Timeout = TimeSpan.FromSeconds(30); // Set timeout to prevent hanging
             addonHttpClient.DefaultRequestHeaders.Add("User-Agent", "Jfresolve/1.0");
-            var response = await addonHttpClient.GetStringAsync(streamUrl);
+            using var addonResponse = await addonHttpClient.GetAsync(streamUrl);
+            if (!addonResponse.IsSuccessStatusCode)
+            {
+                // Log the status and a snippet of the body - 403s here usually come from the addon or
+                // Cloudflare in front of it (blocked server/VPS IP), not from the debrid provider
+                var body = await addonResponse.Content.ReadAsStringAsync();
+                _logger.LogError(
+                    "Jfresolve: Addon returned {Status} for {StreamUrl}. Response: {Body}",
+                    (int)addonResponse.StatusCode, streamUrl, body.Length > 300 ? body[..300] : body);
+                return StatusCode(502, $"Addon returned {(int)addonResponse.StatusCode}");
+            }
+            var response = await addonResponse.Content.ReadAsStringAsync();
 
             // Parse the JSON response
             using var json = JsonDocument.Parse(response);
@@ -171,70 +185,20 @@ public class JfresolveApiController : ControllerBase
             try
             {
                 _logger.LogInformation("Jfresolve: Proxying stream from {RedirectUrl}", redirectUrl);
-                
-                var streamHttpClient = _httpClientFactory.CreateClient();
-                streamHttpClient.Timeout = TimeSpan.FromMinutes(10); // Longer timeout for streaming
-                
-                // Handle HTTP Range requests for seeking (required by FFmpeg)
-                var rangeHeader = Request.Headers["Range"].ToString();
-                HttpRequestMessage requestMessage = new HttpRequestMessage(HttpMethod.Get, redirectUrl);
-                
-                if (!string.IsNullOrEmpty(rangeHeader))
-                {
-                    _logger.LogDebug("Jfresolve: Range request detected: {Range}", rangeHeader);
-                    requestMessage.Headers.Add("Range", rangeHeader);
-                }
-                
-                // Stream the content directly to the response
-                var streamResponse = await streamHttpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead);
-                streamResponse.EnsureSuccessStatusCode();
-
-                // Copy status code (206 for partial content if range was requested)
-                Response.StatusCode = (int)streamResponse.StatusCode;
-
-                // Copy headers that might be important for streaming
-                if (streamResponse.Content.Headers.ContentType != null)
-                {
-                    Response.ContentType = streamResponse.Content.Headers.ContentType.ToString();
-                }
-                
-                // Copy Content-Range header if present (for 206 Partial Content responses)
-                // Content-Range can be in response headers or content headers depending on the server
-                string? contentRangeValue = null;
-                if (streamResponse.Headers.TryGetValues("Content-Range", out var responseContentRange))
-                {
-                    contentRangeValue = responseContentRange.FirstOrDefault();
-                }
-                else if (streamResponse.Content.Headers.TryGetValues("Content-Range", out var contentContentRange))
-                {
-                    contentRangeValue = contentContentRange.FirstOrDefault();
-                }
-                
-                if (!string.IsNullOrEmpty(contentRangeValue))
-                {
-                    Response.Headers["Content-Range"] = contentRangeValue;
-                }
-                
-                // Copy Accept-Ranges header to indicate we support range requests
-                Response.Headers["Accept-Ranges"] = "bytes";
-                
-                if (streamResponse.Content.Headers.ContentLength.HasValue)
-                {
-                    Response.ContentLength = streamResponse.Content.Headers.ContentLength.Value;
-                }
-
-                // Copy the stream to the response (unbuffered for better streaming performance)
-                // Use a buffer to avoid blocking, but keep it small for low latency
-                var buffer = new byte[81920]; // 80KB buffer
-                using (var stream = await streamResponse.Content.ReadAsStreamAsync())
-                {
-                    int bytesRead;
-                    while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length)) > 0)
-                    {
-                        await Response.Body.WriteAsync(buffer, 0, bytesRead);
-                        await Response.Body.FlushAsync(); // Flush to ensure data is sent immediately
-                    }
-                }
+                await ProxyStreamAsync(redirectUrl, HttpContext.RequestAborted);
+                return new EmptyResult();
+            }
+            catch (OperationCanceledException) when (HttpContext.RequestAborted.IsCancellationRequested)
+            {
+                // Client (FFmpeg/player) went away - normal when seeking or stopping
+                _logger.LogDebug("Jfresolve: Client closed stream for {Type}/{Id}", type, id);
+                return new EmptyResult();
+            }
+            catch (Exception ex) when (Response.HasStarted)
+            {
+                // Bytes already sent - can't change the status code anymore, just end the response
+                _logger.LogWarning(ex, "Jfresolve: Stream for {Type}/{Id} ended early after retries", type, id);
+                HttpContext.Abort();
                 return new EmptyResult();
             }
             catch (HttpRequestException ex)
@@ -258,6 +222,137 @@ public class JfresolveApiController : ControllerBase
             _logger.LogError(ex, "Jfresolve: Error resolving stream for {Type}/{Id}", type, id);
             return StatusCode(500, $"Error resolving stream: {ex.Message}");
         }
+    }
+
+    private const int MaxStreamResumeAttempts = 5;
+
+    /// <summary>
+    /// Proxies the upstream stream to the client, honouring Range requests.
+    /// Debrid hosts often reset long-running connections on high-bitrate files (4K remuxes),
+    /// so when the upstream drops mid-stream we reconnect with a Range header from the
+    /// last byte sent and keep going instead of failing playback.
+    /// </summary>
+    private async Task ProxyStreamAsync(string url, CancellationToken clientAborted)
+    {
+        var client = _httpClientFactory.CreateClient();
+        // No overall timeout: a full movie can take hours to stream. Stalls surface as IO errors.
+        client.Timeout = Timeout.InfiniteTimeSpan;
+
+        var (rangeStart, rangeEnd) = ParseRange(Request.Headers["Range"].ToString());
+        var forwardRange = !string.IsNullOrEmpty(Request.Headers["Range"].ToString());
+        long sent = 0;
+        var attempt = 0;
+        var buffer = new byte[256 * 1024];
+
+        while (true)
+        {
+            var request = new HttpRequestMessage(HttpMethod.Get, url);
+            if (attempt > 0)
+            {
+                request.Headers.Range = new RangeHeaderValue(rangeStart + sent, rangeEnd);
+            }
+            else if (forwardRange)
+            {
+                request.Headers.TryAddWithoutValidation("Range", Request.Headers["Range"].ToString());
+            }
+
+            using var upstream = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, clientAborted);
+            if (!upstream.IsSuccessStatusCode)
+            {
+                // 403 here comes from the debrid host / addon resolve link (e.g. IP not allowed, VPN/datacenter IP, expired link)
+                _logger.LogError(
+                    "Jfresolve: Stream host returned {Status} for {Url} (final URL: {FinalUrl})",
+                    (int)upstream.StatusCode, url, upstream.RequestMessage?.RequestUri);
+            }
+            upstream.EnsureSuccessStatusCode();
+
+            // Reuse the final (post-redirect) debrid URL on resume so the addon isn't asked to re-resolve
+            url = upstream.RequestMessage?.RequestUri?.ToString() ?? url;
+
+            if (attempt == 0)
+            {
+                CopyResponseHeaders(upstream);
+            }
+            else if (upstream.StatusCode != HttpStatusCode.PartialContent)
+            {
+                // Host ignored our Range header - resuming would send duplicate bytes
+                throw new IOException("Upstream does not support range requests, cannot resume stream");
+            }
+
+            try
+            {
+                await using var stream = await upstream.Content.ReadAsStreamAsync(clientAborted);
+                int read;
+                while ((read = await stream.ReadAsync(buffer, clientAborted)) > 0)
+                {
+                    await Response.Body.WriteAsync(buffer.AsMemory(0, read), clientAborted);
+                    sent += read;
+                }
+                return; // finished cleanly
+            }
+            catch (Exception ex) when (ex is IOException or HttpRequestException && !clientAborted.IsCancellationRequested)
+            {
+                if (++attempt > MaxStreamResumeAttempts)
+                {
+                    throw;
+                }
+
+                _logger.LogWarning(
+                    "Jfresolve: Upstream dropped after {Sent} bytes ({Message}), resuming (attempt {Attempt}/{Max})",
+                    sent, ex.Message, attempt, MaxStreamResumeAttempts);
+                await Task.Delay(TimeSpan.FromSeconds(attempt), clientAborted);
+            }
+        }
+    }
+
+    private void CopyResponseHeaders(HttpResponseMessage upstream)
+    {
+        // Copy status code (206 for partial content if range was requested)
+        Response.StatusCode = (int)upstream.StatusCode;
+
+        if (upstream.Content.Headers.ContentType != null)
+        {
+            Response.ContentType = upstream.Content.Headers.ContentType.ToString();
+        }
+
+        // Content-Range can be in response headers or content headers depending on the server
+        string? contentRange = null;
+        if (upstream.Headers.TryGetValues("Content-Range", out var responseContentRange))
+        {
+            contentRange = responseContentRange.FirstOrDefault();
+        }
+        else if (upstream.Content.Headers.TryGetValues("Content-Range", out var contentContentRange))
+        {
+            contentRange = contentContentRange.FirstOrDefault();
+        }
+
+        if (!string.IsNullOrEmpty(contentRange))
+        {
+            Response.Headers["Content-Range"] = contentRange;
+        }
+
+        Response.Headers["Accept-Ranges"] = "bytes";
+
+        if (upstream.Content.Headers.ContentLength.HasValue)
+        {
+            Response.ContentLength = upstream.Content.Headers.ContentLength.Value;
+        }
+    }
+
+    /// <summary>
+    /// Parses a single "bytes=start-end" range. Returns (0, null) when absent or unsupported.
+    /// </summary>
+    private static (long Start, long? End) ParseRange(string header)
+    {
+        if (RangeHeaderValue.TryParse(header, out var parsed) && parsed.Ranges.Count == 1)
+        {
+            var r = parsed.Ranges.First();
+            if (r.From.HasValue)
+            {
+                return (r.From.Value, r.To);
+            }
+        }
+        return (0, null);
     }
 
     /// <summary>
@@ -375,9 +470,39 @@ public class JfresolveApiController : ControllerBase
             return matchedStream;
         }
 
-        // Fallback: select highest quality if preferred not found
-        _logger.LogInformation("Jfresolve: Preferred quality {Quality} not found, selecting highest available", preferredQuality);
-        return SelectHighestQualityStream(streamArray);
+        // Fallback: treat the preferred quality as a ceiling - take the next best quality below it,
+        // and only go above it if nothing at or below is available
+        return SelectClosestQualityStream(streamArray, preferredQuality);
+    }
+
+    private static readonly string[] QualityPriority = { "4K", "1440p", "1080p", "720p", "480p" };
+
+    /// <summary>
+    /// Picks the best stream at or below the preferred quality; if none exist, the lowest one above it,
+    /// and finally the first stream if no quality could be detected.
+    /// </summary>
+    private JsonElement SelectClosestQualityStream(System.Collections.Generic.List<JsonElement> streams, string preferredQuality)
+    {
+        var preferredIndex = Array.FindIndex(QualityPriority, q => q.Equals(preferredQuality, StringComparison.OrdinalIgnoreCase));
+        if (preferredIndex < 0)
+        {
+            return SelectHighestQualityStream(streams);
+        }
+
+        var below = QualityPriority.Skip(preferredIndex + 1);
+        var above = QualityPriority.Take(preferredIndex).Reverse();
+        foreach (var quality in below.Concat(above))
+        {
+            var stream = FindStreamByQuality(streams, quality);
+            if (stream != null)
+            {
+                _logger.LogInformation("Jfresolve: Preferred quality {Preferred} not found, selected closest available {Quality}", preferredQuality, quality);
+                return stream.Value;
+            }
+        }
+
+        _logger.LogInformation("Jfresolve: Preferred quality {Preferred} not found and no quality indicators detected, using first stream", preferredQuality);
+        return streams[0];
     }
 
     /// <summary>
@@ -431,9 +556,7 @@ public class JfresolveApiController : ControllerBase
     private JsonElement SelectHighestQualityStream(System.Collections.Generic.List<JsonElement> streams)
     {
         // Try to find streams in order of quality preference
-        string[] qualityPriority = { "4K", "1440p", "1080p", "720p", "480p" };
-
-        foreach (var quality in qualityPriority)
+        foreach (var quality in QualityPriority)
         {
             var stream = FindStreamByQuality(streams, quality);
             if (stream != null)

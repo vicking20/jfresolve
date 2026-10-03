@@ -31,7 +31,7 @@ namespace Jfresolve;
 /// Manages virtual items and search functionality for the Jfresolve plugin
 /// Based on Gelato's pattern
 /// </summary>
-public class JfresolveManager
+public partial class JfresolveManager
 {
     private readonly ILogger<JfresolveManager> _log;
     private readonly TmdbService _tmdbService;
@@ -720,6 +720,13 @@ public async Task<(BaseItem? Item, bool Created)> InsertMeta(
     bool queueRefreshItem,
     CancellationToken ct)
 {
+    // STRM mode: write files to disk and let Jellyfin's scanner create the items
+    if (JfresolvePlugin.Instance?.Configuration.WriteStrmFiles == true)
+    {
+        var written = await WriteStrmFilesAsync(parent, metadata, ct);
+        return (null, written);
+    }
+
     var tasks = GetEnabledVersioningTasks();
     BaseItem? firstItem = null;
     bool anyCreated = false;
@@ -1029,6 +1036,10 @@ private async Task SaveImagesForItem(BaseItem item, TmdbTvShow meta, Cancellatio
         catch (Exception ex)
         {
             _log.LogError(ex, "Jfresolve: Failed to create seasons/episodes for series '{Name}'", series.Name);
+        }
+        finally
+        {
+            itemLock.Release();
         }
     }
 

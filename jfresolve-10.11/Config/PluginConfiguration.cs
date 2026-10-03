@@ -27,6 +27,14 @@ public class PluginConfiguration : BasePluginConfiguration
     /// </summary>
     public string AddonManifestUrl { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Write .strm files to the library folders instead of inserting items directly into the database.
+    /// Jellyfin's library scanner then picks them up as normal items, which makes them playable in
+    /// third-party clients (e.g. Infuse). Each .strm points at the plugin's resolve endpoint, so the
+    /// actual stream is still resolved at playback time.
+    /// </summary>
+    public bool WriteStrmFiles { get; set; } = false;
+
     // Library Folder Path Configuration Mode
     /// <summary>
     /// Path configuration mode: Simple (same paths for search and auto-populate) or Advanced (separate paths)

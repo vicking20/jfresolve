@@ -410,6 +410,12 @@ public sealed class PopulateLibraryTask : IScheduledTask
                 progress.Report(50 + (processedItems * 40.0 / totalItems));
             }
 
+            // STRM mode: files are on disk, have Jellyfin scan them in
+            if (_jfresolveManager.IsStrmMode)
+            {
+                _jfresolveManager.QueueStrmScan();
+            }
+
             // Update last run timestamp
             config.LastPopulationRun = DateTime.UtcNow;
             JfresolvePlugin.Instance!.SaveConfiguration();
