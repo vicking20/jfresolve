@@ -7,42 +7,26 @@ using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace Jfresolve;
 
-/// <summary>
-/// Common extension methods and utilities for Jfresolve filters
-/// </summary>
 public static class Common
 {
     private static readonly string[] RouteGuidKeys = new[] { "id", "Id", "ID", "itemId", "ItemId", "ItemID" };
 
-    /// <summary>
-    /// Get the action name from the ActionExecutingContext
-    /// </summary>
     public static string? GetActionName(this ActionExecutingContext ctx) =>
         (ctx.ActionDescriptor as ControllerActionDescriptor)?.ActionName;
 
-    /// <summary>
-    /// Get the action name from the HttpContext (Gelato pattern)
-    /// </summary>
     public static string? GetActionName(this HttpContext ctx) =>
         ctx.GetEndpoint()?.Metadata.GetMetadata<ControllerActionDescriptor>()?.ActionName;
 
-    /// <summary>
-    /// Try to get a GUID from the route values
-    /// </summary>
     public static bool TryGetRouteGuid(this ActionExecutingContext ctx, out Guid value)
     {
         value = Guid.Empty;
         return ctx.TryGetRouteGuidString(out var s) && Guid.TryParse(s, out value);
     }
 
-    /// <summary>
-    /// Try to get a GUID string from the route values
-    /// </summary>
     public static bool TryGetRouteGuidString(this ActionExecutingContext ctx, out string value)
     {
         value = string.Empty;
 
-        // Check if already resolved
         if (ctx.HttpContext.Items["GuidResolved"] is Guid g)
         {
             value = g.ToString("N");
@@ -51,7 +35,6 @@ public static class Common
 
         var rd = ctx.RouteData.Values;
 
-        // Check route values
         foreach (var key in RouteGuidKeys)
         {
             if (
@@ -80,9 +63,6 @@ public static class Common
         return false;
     }
 
-    /// <summary>
-    /// Try to get the user ID from the HTTP context claims
-    /// </summary>
     public static bool TryGetUserId(this ActionExecutingContext ctx, out Guid userId)
     {
         userId = Guid.Empty;
@@ -95,9 +75,6 @@ public static class Common
     }
 }
 
-/// <summary>
-/// Extension methods for storing metadata in ExternalId (Gelato pattern)
-/// </summary>
 public static class BaseItemExtensions
 {
     public static string JfresolveData(this MediaBrowser.Controller.Entities.BaseItem item, string key)

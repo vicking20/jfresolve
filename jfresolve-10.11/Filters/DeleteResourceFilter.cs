@@ -10,10 +10,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Jfresolve.Filters;
 
-/// <summary>
-/// Filter to intercept delete requests for Jfresolve virtual items
-/// Allows deletion of virtual items that don't have physical files
-/// </summary>
+/// <summary>Allows deleting Jfresolve items, which have no files on disk.</summary>
 public sealed class DeleteResourceFilter : IAsyncActionFilter
 {
     private readonly ILibraryManager _libraryManager;
@@ -39,7 +36,6 @@ public sealed class DeleteResourceFilter : IAsyncActionFilter
         ActionExecutionDelegate next
     )
     {
-        // Only intercept DeleteItem actions with valid user
         if (
             ctx.GetActionName() != "DeleteItem"
             || !ctx.TryGetRouteGuid(out var guid)
@@ -53,14 +49,12 @@ public sealed class DeleteResourceFilter : IAsyncActionFilter
 
         var item = _libraryManager.GetItemById<BaseItem>(guid, user);
 
-        // Only handle Jfresolve items that user can delete
         if (item is null || !_manager.IsJfresolve(item) || !_manager.CanDelete(item, user))
         {
             await next();
             return;
         }
 
-        // Handle deletion and return 204 No Content
         _log.LogInformation("Jfresolve: Deleting item '{Name}' (ID: {Id})", item.Name, item.Id);
         _libraryManager.DeleteItem(item, new DeleteOptions { DeleteFileLocation = false }, true);
         ctx.Result = new NoContentResult();

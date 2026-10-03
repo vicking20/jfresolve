@@ -14,9 +14,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Jfresolve.ScheduledTasks;
 
-/// <summary>
-/// Scheduled task to check for new seasons/episodes in existing Jfresolve series
-/// </summary>
+/// <summary>Adds new seasons and episodes to existing Jfresolve series.</summary>
 public sealed class UpdateSeriesTask : IScheduledTask
 {
     private readonly ILibraryManager _libraryManager;
@@ -69,7 +67,6 @@ public sealed class UpdateSeriesTask : IScheduledTask
 
         try
         {
-            // Get all Jfresolve series from the library
             var allSeries = _libraryManager.GetUserRootFolder()
                 .GetRecursiveChildren()
                 .OfType<Series>()
@@ -123,16 +120,12 @@ public sealed class UpdateSeriesTask : IScheduledTask
         }
     }
 
-    /// <summary>
-    /// Check if a series has updates and apply them if found
-    /// Returns true if series was updated
-    /// </summary>
+    /// <summary>Returns true if the series was updated.</summary>
     public async Task<bool> CheckAndUpdateSeries(
         Series series,
         Configuration.PluginConfiguration config,
         CancellationToken cancellationToken)
     {
-        // Get TMDB ID
         var tmdbIdStr = series.GetProviderId("Tmdb");
         if (string.IsNullOrWhiteSpace(tmdbIdStr) || !int.TryParse(tmdbIdStr, out var tmdbId))
         {
@@ -140,7 +133,6 @@ public sealed class UpdateSeriesTask : IScheduledTask
             return false;
         }
 
-        // Fetch latest TV details from TMDB
         var tvDetails = await _tmdbService.GetTvDetailsAsync(tmdbId, config.TmdbApiKey);
         if (tvDetails == null || tvDetails.Seasons == null)
         {
@@ -148,7 +140,6 @@ public sealed class UpdateSeriesTask : IScheduledTask
             return false;
         }
 
-        // Get IMDB ID from TMDB details (needed for episode paths)
         var imdbId = series.GetProviderId("Imdb");
         if (string.IsNullOrWhiteSpace(imdbId))
         {
@@ -156,7 +147,6 @@ public sealed class UpdateSeriesTask : IScheduledTask
             return false;
         }
 
-        // Create minimal TmdbTvShow object for season/episode creation
         var tmdbShow = new TmdbTvShow
         {
             Id = tmdbId,
@@ -164,7 +154,6 @@ public sealed class UpdateSeriesTask : IScheduledTask
             ImdbId = imdbId
         };
 
-        // Get existing seasons
         var existingSeasons = _libraryManager.GetItemList(new InternalItemsQuery
         {
             ParentId = series.Id,
@@ -172,12 +161,11 @@ public sealed class UpdateSeriesTask : IScheduledTask
             IsDeadPerson = true,
         }).OfType<Season>().ToList();
 
-        // Get latest seasons from TMDB (exclude season 0 - specials)
+        // Season 0 (specials) is skipped
         var latestSeasons = tvDetails.Seasons.Where(s => s.SeasonNumber > 0).ToList();
 
         var hasUpdates = false;
 
-        // Check for new seasons
         var maxExistingSeason = existingSeasons.Any() ? existingSeasons.Max(s => s.IndexNumber ?? 0) : 0;
         var newSeasons = latestSeasons.Where(s => s.SeasonNumber > maxExistingSeason).ToList();
 
@@ -211,7 +199,6 @@ public sealed class UpdateSeriesTask : IScheduledTask
             }
         }
 
-        // Check existing seasons for new episodes
         foreach (var existingSeason in existingSeasons)
         {
             if (cancellationToken.IsCancellationRequested)
@@ -225,7 +212,6 @@ public sealed class UpdateSeriesTask : IScheduledTask
                 continue;
             }
 
-            // Get existing episodes
             var existingEpisodes = _libraryManager.GetItemList(new InternalItemsQuery
             {
                 ParentId = existingSeason.Id,
@@ -233,7 +219,6 @@ public sealed class UpdateSeriesTask : IScheduledTask
                 IsDeadPerson = true,
             }).OfType<Episode>().ToList();
 
-            // Fetch season details from TMDB
             var seasonDetails = await _tmdbService.GetSeasonDetailsAsync(tmdbId, seasonNumber.Value, config.TmdbApiKey);
             if (seasonDetails == null || seasonDetails.Episodes == null)
             {
@@ -280,7 +265,6 @@ public sealed class UpdateSeriesTask : IScheduledTask
 
         if (hasUpdates)
         {
-            // Update the series to notify Jellyfin
             await series.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, cancellationToken);
             _log.LogInformation("Jfresolve: Updated series '{Name}' with new content", series.Name);
         }
@@ -290,8 +274,7 @@ public sealed class UpdateSeriesTask : IScheduledTask
 
     public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()
     {
-        // No default trigger - users can configure weekly schedule manually
-        // Recommended: Weekly on Sunday at 4 AM
+        // No default trigger; users schedule it themselves
         return Array.Empty<TaskTriggerInfo>();
     }
 }

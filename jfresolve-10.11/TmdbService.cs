@@ -49,7 +49,6 @@ public class TmdbService
 
             var movies = result?.Results ?? new List<TmdbMovie>();
 
-            // Fetch IMDB IDs for each movie
             foreach (var movie in movies)
             {
                 var externalIds = await GetExternalIdsAsync(movie.Id, "movie", apiKey);
@@ -97,7 +96,6 @@ public class TmdbService
 
             var tvShows = result?.Results ?? new List<TmdbTvShow>();
 
-            // Fetch IMDB IDs for each TV show
             foreach (var show in tvShows)
             {
                 var externalIds = await GetExternalIdsAsync(show.Id, "tv", apiKey);
@@ -117,11 +115,6 @@ public class TmdbService
         }
     }
 
-    // ============ DISCOVERY API METHODS (for Auto Library Population) ============
-
-    /// <summary>
-    /// Get trending movies (daily or weekly)
-    /// </summary>
     public async Task<List<TmdbMovie>> GetTrendingMoviesAsync(string apiKey, string timeWindow = "day", bool includeAdult = false)
     {
         if (string.IsNullOrWhiteSpace(apiKey))
@@ -132,7 +125,7 @@ public class TmdbService
 
         try
         {
-            // timeWindow can be "day" or "week"
+            // timeWindow: "day" or "week"
             var url = $"{BaseUrl}/trending/movie/{timeWindow}?api_key={apiKey}&include_adult={includeAdult.ToString().ToLower()}";
 
             _log.LogInformation("Fetching trending movies ({TimeWindow})", timeWindow);
@@ -151,7 +144,6 @@ public class TmdbService
 
             var movies = result?.Results ?? new List<TmdbMovie>();
 
-            // Fetch IMDB IDs for each movie
             foreach (var movie in movies)
             {
                 var externalIds = await GetExternalIdsAsync(movie.Id, "movie", apiKey);
@@ -171,9 +163,6 @@ public class TmdbService
         }
     }
 
-    /// <summary>
-    /// Get trending TV shows (daily or weekly)
-    /// </summary>
     public async Task<List<TmdbTvShow>> GetTrendingTvShowsAsync(string apiKey, string timeWindow = "day", bool includeAdult = false)
     {
         if (string.IsNullOrWhiteSpace(apiKey))
@@ -184,7 +173,7 @@ public class TmdbService
 
         try
         {
-            // timeWindow can be "day" or "week"
+            // timeWindow: "day" or "week"
             var url = $"{BaseUrl}/trending/tv/{timeWindow}?api_key={apiKey}&include_adult={includeAdult.ToString().ToLower()}";
 
             _log.LogInformation("Fetching trending TV shows ({TimeWindow})", timeWindow);
@@ -203,7 +192,6 @@ public class TmdbService
 
             var tvShows = result?.Results ?? new List<TmdbTvShow>();
 
-            // Fetch IMDB IDs for each TV show
             foreach (var tvShow in tvShows)
             {
                 var externalIds = await GetExternalIdsAsync(tvShow.Id, "tv", apiKey);
@@ -223,9 +211,6 @@ public class TmdbService
         }
     }
 
-    /// <summary>
-    /// Get popular movies
-    /// </summary>
     public async Task<List<TmdbMovie>> GetPopularMoviesAsync(string apiKey, bool includeAdult = false, int page = 1)
     {
         if (string.IsNullOrWhiteSpace(apiKey))
@@ -254,7 +239,6 @@ public class TmdbService
 
             var movies = result?.Results ?? new List<TmdbMovie>();
 
-            // Fetch IMDB IDs for each movie
             foreach (var movie in movies)
             {
                 var externalIds = await GetExternalIdsAsync(movie.Id, "movie", apiKey);
@@ -274,9 +258,6 @@ public class TmdbService
         }
     }
 
-    /// <summary>
-    /// Get popular TV shows
-    /// </summary>
     public async Task<List<TmdbTvShow>> GetPopularTvShowsAsync(string apiKey, bool includeAdult = false, int page = 1)
     {
         if (string.IsNullOrWhiteSpace(apiKey))
@@ -305,7 +286,6 @@ public class TmdbService
 
             var tvShows = result?.Results ?? new List<TmdbTvShow>();
 
-            // Fetch IMDB IDs for each TV show
             foreach (var tvShow in tvShows)
             {
                 var externalIds = await GetExternalIdsAsync(tvShow.Id, "tv", apiKey);
@@ -325,9 +305,6 @@ public class TmdbService
         }
     }
 
-    /// <summary>
-    /// Get top rated movies
-    /// </summary>
     public async Task<List<TmdbMovie>> GetTopRatedMoviesAsync(string apiKey, bool includeAdult = false, int page = 1)
     {
         if (string.IsNullOrWhiteSpace(apiKey))
@@ -356,7 +333,6 @@ public class TmdbService
 
             var movies = result?.Results ?? new List<TmdbMovie>();
 
-            // Fetch IMDB IDs for each movie
             foreach (var movie in movies)
             {
                 var externalIds = await GetExternalIdsAsync(movie.Id, "movie", apiKey);
@@ -376,9 +352,6 @@ public class TmdbService
         }
     }
 
-    /// <summary>
-    /// Get top rated TV shows
-    /// </summary>
     public async Task<List<TmdbTvShow>> GetTopRatedTvShowsAsync(string apiKey, bool includeAdult = false, int page = 1)
     {
         if (string.IsNullOrWhiteSpace(apiKey))
@@ -407,7 +380,6 @@ public class TmdbService
 
             var tvShows = result?.Results ?? new List<TmdbTvShow>();
 
-            // Fetch IMDB IDs for each TV show
             foreach (var show in tvShows)
             {
                 var externalIds = await GetExternalIdsAsync(show.Id, "tv", apiKey);
@@ -578,9 +550,7 @@ public class TmdbMovie
     // IMDB ID fetched separately via external_ids endpoint
     public string? ImdbId { get; set; }
 
-    /// <summary>
-    /// Check if this movie is anime (genre ID 16 in TMDB)
-    /// </summary>
+    /// <summary>TMDB genre 16 (Animation).</summary>
     public bool IsAnime() => GenreIds.Contains(16);
 
     public string GetPosterUrl() =>
@@ -642,9 +612,7 @@ public class TmdbTvShow
     // IMDB ID fetched separately via external_ids endpoint
     public string? ImdbId { get; set; }
 
-    /// <summary>
-    /// Check if this TV show is anime (genre ID 16 in TMDB)
-    /// </summary>
+    /// <summary>TMDB genre 16 (Animation).</summary>
     public bool IsAnime() => GenreIds.Contains(16);
 
     public string GetPosterUrl() =>

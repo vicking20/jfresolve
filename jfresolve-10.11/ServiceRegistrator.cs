@@ -24,7 +24,6 @@ public class ServiceRegistrator : IPluginServiceRegistrator
 {
     public void RegisterServices(IServiceCollection services, IServerApplicationHost host)
     {
-        // Register core services
         services.AddSingleton<TmdbService>();
         services.AddSingleton<JfresolveManager>();
         services.AddSingleton<JfresolveSeriesProvider>();
@@ -33,26 +32,20 @@ public class ServiceRegistrator : IPluginServiceRegistrator
         services.AddSingleton<ImageResourceFilter>();
         services.AddSingleton<DeleteResourceFilter>();
 
-        // Register scheduled tasks
         services.AddSingleton<PurgeJfresolveTask>();
         services.AddSingleton<PopulateLibraryTask>();
         services.AddSingleton<UpdateSeriesTask>();
 
-        // Register HttpClientFactory for TMDB API calls
         services.AddHttpClient();
         
-        // Register HttpContextAccessor for accessing HTTP context in decorators (required for Jellyfin 10.11.6 compatibility)
+        // Used by the decorators to inspect the current request
         services.AddHttpContextAccessor();
 
-        // Register FFmpeg configuration service (Gelato pattern)
         services.AddHostedService<JfresolveFFmpegConfigService>();
 
-        // Register decorators
         services.DecorateSingle<IItemRepository, JfresolveItemRepository>();
         services.DecorateSingle<IMediaSourceManager, MediaSourceManagerDecorator>();
 
-
-        // Register MVC filters
         services.PostConfigure<Microsoft.AspNetCore.Mvc.MvcOptions>(options =>
         {
             options.Filters.AddService<SearchActionFilter>(order: 1);
@@ -63,9 +56,7 @@ public class ServiceRegistrator : IPluginServiceRegistrator
     }
 }
 
-/// <summary>
-/// Background service that applies FFmpeg configuration on startup and initializes folders (Gelato pattern)
-/// </summary>
+/// <summary>Applies FFmpeg settings and seeds library folders on startup.</summary>
 public class JfresolveFFmpegConfigService : IHostedService
 {
     private readonly IConfiguration _config;
@@ -86,10 +77,8 @@ public class JfresolveFFmpegConfigService : IHostedService
     {
         var config = JfresolvePlugin.Instance?.Configuration;
 
-        // Initialize seed folders on startup
         InitializeFolders(config);
 
-        // Only apply custom FFmpeg settings if enabled
         if (config?.EnableCustomFFmpegSettings == true)
         {
             var analyze = config.FFmpegAnalyzeDuration ?? "5M";
@@ -116,9 +105,6 @@ public class JfresolveFFmpegConfigService : IHostedService
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
-    /// <summary>
-    /// Initialize seed folders for all configured library paths (supports Simple and Advanced modes)
-    /// </summary>
     private void InitializeFolders(Configuration.PluginConfiguration? config)
     {
         if (config == null)
@@ -133,7 +119,6 @@ public class JfresolveFFmpegConfigService : IHostedService
 
             if (config.PathMode == Configuration.PathConfigMode.Simple)
             {
-                // Simple mode: Initialize single paths for both search and auto-populate
                 if (!string.IsNullOrWhiteSpace(config.MoviePath))
                 {
                     JfresolveManager.SeedFolder(config.MoviePath);
@@ -154,8 +139,6 @@ public class JfresolveFFmpegConfigService : IHostedService
             }
             else
             {
-                // Advanced mode: Initialize separate search and auto-populate paths
-                // Search paths
                 if (!string.IsNullOrWhiteSpace(config.MovieSearchPath))
                 {
                     JfresolveManager.SeedFolder(config.MovieSearchPath);
@@ -174,7 +157,6 @@ public class JfresolveFFmpegConfigService : IHostedService
                     _log.LogInformation("Jfresolve: [Advanced] Initialized seed folder for anime search at '{Path}'", config.AnimeSearchPath);
                 }
 
-                // Auto-populate paths
                 if (!string.IsNullOrWhiteSpace(config.MovieAutoPopulatePath))
                 {
                     JfresolveManager.SeedFolder(config.MovieAutoPopulatePath);
@@ -203,7 +185,6 @@ public class JfresolveFFmpegConfigService : IHostedService
     }
 }
 
-// Extension methods for service decoration
 public static class ServiceCollectionExtensions
 {
     public static IServiceCollection DecorateSingle<TService, TDecorator>(

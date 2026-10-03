@@ -11,10 +11,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Jfresolve.Filters;
 
-/// <summary>
-/// Intercepts item detail/playback requests and materializes virtual TMDB items into the database
-/// Copied from Gelato's InsertActionFilter pattern
-/// </summary>
+/// <summary>Adds a TMDB search result to the library when it is opened or played.</summary>
 public class InsertActionFilter : IAsyncActionFilter, IOrderedFilter
 {
     private readonly ILibraryManager _library;
@@ -39,7 +36,6 @@ public class InsertActionFilter : IAsyncActionFilter, IOrderedFilter
         ActionExecutionDelegate next
     )
     {
-        // Check if this is an insertable action and get the GUID
         if (
             !ctx.IsInsertableAction()
             || !ctx.TryGetRouteGuid(out var guid)
@@ -52,7 +48,6 @@ public class InsertActionFilter : IAsyncActionFilter, IOrderedFilter
 
         _log.LogDebug("Jfresolve: InsertActionFilter triggered for GUID {Guid}", guid);
 
-        // Create temporary BaseItem to check provider IDs
         BaseItem item;
         if (metadata is TmdbMovie tmdbMovie)
         {
@@ -68,7 +63,6 @@ public class InsertActionFilter : IAsyncActionFilter, IOrderedFilter
             return;
         }
 
-        // Check if already exists (Gelato pattern: FindExistingItem)
         var existing = FindExistingItem(item);
         if (existing is not null)
         {
@@ -77,13 +71,12 @@ public class InsertActionFilter : IAsyncActionFilter, IOrderedFilter
                 existing.Id
             );
 
-            // For series, check if it needs updating (on-access update check)
             if (existing is MediaBrowser.Controller.Entities.TV.Series existingSeries)
             {
                 var lastModified = existingSeries.DateModified;
                 var daysSinceUpdate = (DateTime.UtcNow - lastModified).TotalDays;
 
-                // Check for updates if series hasn't been updated in 7+ days
+                // Re-check for new episodes if not updated in 7 days
                 if (daysSinceUpdate >= 7)
                 {
                     _log.LogInformation(
@@ -97,7 +90,6 @@ public class InsertActionFilter : IAsyncActionFilter, IOrderedFilter
                     {
                         try
                         {
-                            // Use UpdateSeriesTask logic to check and update
                             var updateTask = ctx.HttpContext.RequestServices
                                 .GetService(typeof(ScheduledTasks.UpdateSeriesTask)) as ScheduledTasks.UpdateSeriesTask;
 
@@ -134,14 +126,12 @@ public class InsertActionFilter : IAsyncActionFilter, IOrderedFilter
             return;
         }
 
-        // Get root folder (movie or series) - USE SEARCH PATHS
         var isSeries = metadata is TmdbTvShow;
         var isMovie = metadata is TmdbMovie;
         Folder? root = null;
 
         if (isSeries)
         {
-            // Check if this is anime and anime folder is enabled
             var tvShow = (TmdbTvShow)metadata;
             if (tvShow.IsAnime())
             {
@@ -153,7 +143,6 @@ public class InsertActionFilter : IAsyncActionFilter, IOrderedFilter
                 }
                 else
                 {
-                    // Fall back to regular series folder if anime folder not configured or unavailable
                     root = _manager.TryGetSeriesFolderForSearch();
                     _log.LogDebug("Jfresolve: Anime folder not available, using series search folder for '{Name}'", tvShow.Name);
                 }
@@ -165,7 +154,6 @@ public class InsertActionFilter : IAsyncActionFilter, IOrderedFilter
         }
         else if (isMovie)
         {
-            // Check if this is anime movie and anime folder is enabled
             var movie = (TmdbMovie)metadata;
             if (movie.IsAnime())
             {
@@ -177,7 +165,6 @@ public class InsertActionFilter : IAsyncActionFilter, IOrderedFilter
                 }
                 else
                 {
-                    // Fall back to regular movie folder if anime folder not configured or unavailable
                     root = _manager.TryGetMovieFolderForSearch();
                     _log.LogDebug("Jfresolve: Anime folder not available, using movie search folder for '{Title}'", movie.Title);
                 }
@@ -199,7 +186,6 @@ public class InsertActionFilter : IAsyncActionFilter, IOrderedFilter
             return;
         }
 
-        // Insert the item (Gelato pattern: InsertMetaAsync)
         var baseItem = await InsertMetaAsync(guid, root, metadata);
         if (_manager.IsStrmMode)
         {
@@ -215,17 +201,11 @@ public class InsertActionFilter : IAsyncActionFilter, IOrderedFilter
         await next();
     }
 
-    /// <summary>
-    /// Find existing item by provider IDs (Gelato's FindExistingItem)
-    /// </summary>
     public BaseItem? FindExistingItem(BaseItem item)
     {
         return _manager.GetExistingItem(item.ProviderIds, item.GetBaseItemKind());
     }
 
-    /// <summary>
-    /// Insert metadata into database (Gelato's InsertMetaAsync pattern)
-    /// </summary>
     public async Task<BaseItem?> InsertMetaAsync(Guid guid, Folder root, object metadata)
     {
         BaseItem? baseItem = null;
@@ -233,7 +213,6 @@ public class InsertActionFilter : IAsyncActionFilter, IOrderedFilter
 
         try
         {
-            // Pass queueRefreshItem = true to trigger metadata refresh (Gelato pattern)
             (baseItem, created) = await _manager.InsertMeta(guid, root, metadata, queueRefreshItem: true, CancellationToken.None);
         }
         catch (Exception ex)
@@ -251,9 +230,6 @@ public class InsertActionFilter : IAsyncActionFilter, IOrderedFilter
     }
 }
 
-/// <summary>
-/// Extension methods for InsertActionFilter (Gelato pattern)
-/// </summary>
 public static class InsertActionFilterExtensions
 {
     public static bool IsInsertableAction(this ActionExecutingContext ctx)
@@ -267,7 +243,6 @@ public static class InsertActionFilterExtensions
     {
         guid = Guid.Empty;
 
-        // Try to get from route data
         var routeData = ctx.RouteData.Values;
         foreach (var key in new[] { "id", "itemId", "Id", "ItemId" })
         {

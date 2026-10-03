@@ -27,10 +27,7 @@ using Microsoft.Extensions.Primitives;
 
 namespace Jfresolve;
 
-/// <summary>
-/// Manages virtual items and search functionality for the Jfresolve plugin
-/// Based on Gelato's pattern
-/// </summary>
+/// <summary>Creates and looks up Jfresolve library items.</summary>
 public partial class JfresolveManager
 {
     private readonly ILogger<JfresolveManager> _log;
@@ -66,8 +63,6 @@ public partial class JfresolveManager
         _fileSystem = fileSystem;
         _metadataCache = new ConcurrentDictionary<Guid, (object, DateTime)>();
     }
-
-    // ============ CACHE MANAGEMENT (Gelato pattern) ============
 
     public void SaveTmdbMetadata(Guid guid, object meta)
     {
@@ -107,11 +102,8 @@ public partial class JfresolveManager
             guid, _metadataCache.Count);
     }
 
-    // ============ GUID REPLACEMENT (Gelato pattern) ============
-
     public void ReplaceGuid(ActionContext ctx, Guid value)
     {
-        // Replace route values
         var rd = ctx.RouteData.Values;
         foreach (var key in new[] { "id", "Id", "ID", "itemId", "ItemId", "ItemID" })
         {
@@ -122,7 +114,7 @@ public partial class JfresolveManager
             }
         }
 
-        // Replace action arguments (critical for the current request)
+        // Action arguments are what the current request actually uses
         if (ctx is Microsoft.AspNetCore.Mvc.Filters.ActionExecutingContext execCtx)
         {
             var args = execCtx.ActionArguments;
@@ -136,7 +128,6 @@ public partial class JfresolveManager
             }
         }
 
-        // Replace query string "ids"
         var request = ctx.HttpContext.Request;
         var parsed = QueryHelpers.ParseQuery(request.QueryString.Value ?? "");
 
@@ -153,11 +144,7 @@ public partial class JfresolveManager
         }
     }
 
-    // ============ FOLDER MANAGEMENT (Gelato pattern) ============
-
-    /// <summary>
-    /// Seeds a folder with a marker file to trigger library scans (Gelato pattern)
-    /// </summary>
+    /// <summary>Creates the folder with a marker file so Jellyfin has something to scan.</summary>
     public static void SeedFolder(string path)
     {
         Directory.CreateDirectory(path);
@@ -188,16 +175,14 @@ public partial class JfresolveManager
 
         _log.LogWarning("Jfresolve: TryGetFolder looking for path: {Path}", path);
 
-        // Seed the folder to ensure it exists and triggers library scans
         SeedFolder(path);
 
         try
         {
-            // Query using IItemRepository directly (Gelato pattern)
             var query = new InternalItemsQuery
             {
                 Path = path,
-                IsDeadPerson = true, // Skip filter marker (Gelato pattern)
+                IsDeadPerson = true, // Bypasses the ItemRepository decorator filter
             };
 
             var allItems = _repo.GetItemList(query);
@@ -213,7 +198,6 @@ public partial class JfresolveManager
             }
             else
             {
-                // Try querying without Path filter to see if folder exists anywhere
                 _log.LogWarning("Jfresolve: No items found with Path='{Path}', trying alternative query...", path);
                 var altQuery = new InternalItemsQuery
                 {
@@ -222,7 +206,6 @@ public partial class JfresolveManager
                 var allFolders = _repo.GetItemList(altQuery).OfType<Folder>().ToList();
                 _log.LogWarning("Jfresolve: Found {Count} total folders in database", allFolders.Count);
 
-                // Find folders with matching path
                 var matchingFolders = allFolders.Where(f =>
                     f.Path != null && f.Path.Equals(path, StringComparison.OrdinalIgnoreCase)).ToList();
 
@@ -237,7 +220,6 @@ public partial class JfresolveManager
                     return matchingFolders.First();
                 }
 
-                // Log some sample folder paths to help debug
                 _log.LogWarning("Jfresolve: Sample folder paths in database:");
                 foreach (var f in allFolders.Take(5))
                 {
@@ -278,9 +260,6 @@ public partial class JfresolveManager
         }
     }
 
-    /// <summary>
-    /// Get anime folder if anime support is enabled
-    /// </summary>
     public Folder? TryGetAnimeFolder()
     {
         var config = JfresolvePlugin.Instance?.Configuration;
@@ -292,11 +271,6 @@ public partial class JfresolveManager
         return TryGetFolder(config.AnimePath);
     }
 
-    // ============ MODE-BASED PATH RESOLUTION ============
-
-    /// <summary>
-    /// Get movie folder for search operations based on configuration mode
-    /// </summary>
     public Folder? TryGetMovieFolderForSearch()
     {
         var config = JfresolvePlugin.Instance?.Configuration;
@@ -309,9 +283,6 @@ public partial class JfresolveManager
         return TryGetFolder(config.MoviePath);
     }
 
-    /// <summary>
-    /// Get series folder for search operations based on configuration mode
-    /// </summary>
     public Folder? TryGetSeriesFolderForSearch()
     {
         var config = JfresolvePlugin.Instance?.Configuration;
@@ -324,9 +295,6 @@ public partial class JfresolveManager
         return TryGetFolder(config.SeriesPath);
     }
 
-    /// <summary>
-    /// Get anime folder for search operations based on configuration mode
-    /// </summary>
     public Folder? TryGetAnimeFolderForSearch()
     {
         var config = JfresolvePlugin.Instance?.Configuration;
@@ -346,9 +314,6 @@ public partial class JfresolveManager
         }
     }
 
-    /// <summary>
-    /// Get movie folder for auto-populate operations based on configuration mode
-    /// </summary>
     public Folder? TryGetMovieFolderForAutoPopulate()
     {
         var config = JfresolvePlugin.Instance?.Configuration;
@@ -361,9 +326,6 @@ public partial class JfresolveManager
         return TryGetFolder(config.MoviePath);
     }
 
-    /// <summary>
-    /// Get series folder for auto-populate operations based on configuration mode
-    /// </summary>
     public Folder? TryGetSeriesFolderForAutoPopulate()
     {
         var config = JfresolvePlugin.Instance?.Configuration;
@@ -376,9 +338,6 @@ public partial class JfresolveManager
         return TryGetFolder(config.SeriesPath);
     }
 
-    /// <summary>
-    /// Get anime folder for auto-populate operations based on configuration mode
-    /// </summary>
     public Folder? TryGetAnimeFolderForAutoPopulate()
     {
         var config = JfresolvePlugin.Instance?.Configuration;
@@ -398,17 +357,11 @@ public partial class JfresolveManager
         }
     }
 
-    // ============ SEARCH (returns cached virtual items) ============
-
-    /// <summary>
-    /// Search for items using TMDB API
-    /// </summary>
     public async Task<List<BaseItem>> SearchTmdbAsync(string searchTerm, BaseItemKind itemKind)
     {
         var results = new List<BaseItem>();
         var config = JfresolvePlugin.Instance?.Configuration;
 
-        // Check if TMDB API key is configured
         if (config == null || string.IsNullOrWhiteSpace(config.TmdbApiKey))
         {
             _log.LogWarning("Jfresolve: TMDB API key not configured. Please configure it in plugin settings.");
@@ -419,18 +372,14 @@ public partial class JfresolveManager
 
         if (itemKind == BaseItemKind.Movie)
         {
-            // Search TMDB for movies
             var tmdbResults = await _tmdbService.SearchMoviesAsync(
                 searchTerm,
                 config.TmdbApiKey,
                 config.IncludeAdult
             );
 
-            // Convert TMDB results to BaseItems and cache metadata
-            // Only include movies with IMDB IDs
             foreach (var tmdbMovie in tmdbResults.Take(config.SearchResultLimit))
             {
-                // Skip movies without IMDB ID
                 if (string.IsNullOrWhiteSpace(tmdbMovie.ImdbId))
                 {
                     _log.LogDebug("Jfresolve: Skipping movie '{Title}' - no IMDB ID", tmdbMovie.Title);
@@ -447,18 +396,14 @@ public partial class JfresolveManager
         }
         else if (itemKind == BaseItemKind.Series)
         {
-            // Search TMDB for TV shows
             var tmdbResults = await _tmdbService.SearchTvShowsAsync(
                 searchTerm,
                 config.TmdbApiKey,
                 config.IncludeAdult
             );
 
-            // Convert TMDB results to BaseItems and cache metadata
-            // Only include TV shows with IMDB IDs
             foreach (var tmdbShow in tmdbResults.Take(config.SearchResultLimit))
             {
-                // Skip TV shows without IMDB ID
                 if (string.IsNullOrWhiteSpace(tmdbShow.ImdbId))
                 {
                     _log.LogDebug("Jfresolve: Skipping TV show '{Name}' - no IMDB ID", tmdbShow.Name);
@@ -477,22 +422,14 @@ public partial class JfresolveManager
         return results;
     }
 
-    // ============ INTO BASE ITEM (Gelato pattern) ============
-
-    /// <summary>
-    /// Convert TMDB movie to BaseItem (like Gelato's IntoBaseItem)
-    /// </summary>
     public Movie IntoBaseItem(TmdbMovie tmdbMovie, string quality = "", int index = 0)
     {
-        // Generate stable GUID from TMDB ID, quality and index
         var itemId = GenerateJfresolveGuid("movie", tmdbMovie.Id, quality, index);
 
-        // Build the API controller URL for stream resolution
         var config = JfresolvePlugin.Instance?.Configuration;
         var serverUrl = config?.JellyfinServerUrl ?? "http://localhost:8096";
         var normalizedUrl = serverUrl.TrimEnd('/');
 
-        // Construct API controller URL with quality and index parameters
         var mediaPath = $"{normalizedUrl}/Plugins/Jfresolve/resolve/movie/{tmdbMovie.ImdbId}";
         if (!string.IsNullOrEmpty(quality))
         {
@@ -503,8 +440,7 @@ public partial class JfresolveManager
             mediaPath += mediaPath.Contains('?') ? $"&index={index}" : $"?index={index}";
         }
 
-        // Apply quality tag to Name ONLY for virtual items (not the primary item)
-        // Primary item gets clean name, virtual items get quality tags
+        // Quality versions get a tag in the name; the primary item keeps the clean title
         var name = tmdbMovie.Title;
         var shouldLockName = false;
 
@@ -525,17 +461,15 @@ public partial class JfresolveManager
             PremiereDate = tmdbMovie.GetReleaseDateTime(),
             CommunityRating = tmdbMovie.VoteAverage > 0 ? (float?)tmdbMovie.VoteAverage : null,
             Path = mediaPath,
-            // Container removed - let Jellyfin detect it from the actual stream
             IsVirtualItem = false,
         };
 
-        // Lock the Name field for quality items to prevent metadata refresh from overwriting
+        // Stop metadata refresh from removing the quality tag
         if (shouldLockName)
         {
             movie.LockedFields = new[] { MetadataField.Name };
         }
 
-        // Set provider IDs
         movie.SetProviderId(MetadataProvider.Tmdb, tmdbMovie.Id.ToString());
         if (!string.IsNullOrWhiteSpace(tmdbMovie.ImdbId))
         {
@@ -543,7 +477,6 @@ public partial class JfresolveManager
         }
         movie.SetProviderId("Jfresolve", $"movie:{tmdbMovie.Id}:{quality}:{index}");
 
-        // Add poster and backdrop images
         var images = new List<ItemImageInfo>();
 
         if (!string.IsNullOrWhiteSpace(tmdbMovie.PosterPath))
@@ -584,15 +517,10 @@ public partial class JfresolveManager
         };
     }
 
-    /// <summary>
-    /// Convert TMDB TV show to BaseItem (like Gelato's IntoBaseItem)
-    /// </summary>
     public Series IntoBaseItem(TmdbTvShow tmdbShow, string quality = "", int index = 0)
     {
-        // Generate stable GUID from TMDB ID, quality and index
         var itemId = GenerateJfresolveGuid("tv", tmdbShow.Id, quality, index);
 
-        // Naming for series (versions aren't usually named at the series level, but we use the same ID logic)
         var name = tmdbShow.Name;
 
         var series = new Series
@@ -608,7 +536,6 @@ public partial class JfresolveManager
             IsVirtualItem = false,
         };
 
-        // Set provider IDs
         series.SetProviderId(MetadataProvider.Tmdb, tmdbShow.Id.ToString());
         if (!string.IsNullOrWhiteSpace(tmdbShow.ImdbId))
         {
@@ -616,7 +543,6 @@ public partial class JfresolveManager
         }
         series.SetProviderId("Jfresolve", $"tv:{tmdbShow.Id}:{quality}:{index}");
 
-        // Add poster and backdrop images
         var images = new List<ItemImageInfo>();
 
         if (!string.IsNullOrWhiteSpace(tmdbShow.PosterPath))
@@ -645,9 +571,6 @@ public partial class JfresolveManager
         return series;
     }
 
-    /// <summary>
-    /// Generate stable GUID from type, ID, quality and index
-    /// </summary>
     private Guid GenerateJfresolveGuid(string mediaType, int tmdbId, string quality = "", int index = 0)
     {
         var uniqueString = $"jfresolve://{mediaType}/{tmdbId}";
@@ -665,12 +588,9 @@ public partial class JfresolveManager
         return new Guid(hash);
     }
 
-    // ============ ITEM LOOKUP (Gelato pattern) ============
-
     public BaseItem? GetByProviderIds(Dictionary<string, string> providerIds, BaseItemKind kind)
     {
-        // If we have a Jfresolve ID, we MUST match on it exactly to support versioning.
-        // This prevents different quality versions (which share TMDB/IMDB IDs) from matching each other.
+        // Quality versions share TMDB/IMDB IDs, so match on the Jfresolve ID only
         if (providerIds.TryGetValue("Jfresolve", out var jfId))
         {
             var jfQuery = new InternalItemsQuery
@@ -680,17 +600,13 @@ public partial class JfresolveManager
                 IsDeadPerson = true
             };
 
-            // Search specifically for items that have THIS Jfresolve ID
             var items = _libraryManager.GetItemList(jfQuery);
             var match = items.FirstOrDefault(i => i.ProviderIds.TryGetValue("Jfresolve", out var existingId) && existingId == jfId);
 
-            // If we found a match by Jfresolve ID, return it.
-            // If we have a Jfresolve ID but NO match was found, STOP HERE and return null.
-            // This signals that THIS SPECIFIC VERSION needs to be created.
+            // No match means this version still needs to be created
             return match;
         }
 
-        // Fallback to broad search for non-versioned items (e.g. initial search result metadata)
         var query = new InternalItemsQuery
         {
             IncludeItemTypes = new[] { kind },
@@ -707,12 +623,7 @@ public partial class JfresolveManager
         return GetByProviderIds(providerIds, kind);
     }
 
-    // ============ INSERT META (Gelato pattern - CORE METHOD) ============
-
-    /// <summary>
-    /// Inserts metadata into the library. Skip if it already exists.
-    /// This is the core insertion method copied from Gelato's InsertMeta
-    /// </summary>
+    /// <summary>Inserts the item and its quality versions unless they already exist.</summary>
 public async Task<(BaseItem? Item, bool Created)> InsertMeta(
     Guid guid,
     Folder parent,
@@ -733,13 +644,12 @@ public async Task<(BaseItem? Item, bool Created)> InsertMeta(
 
     foreach (var task in tasks)
     {
-        // Determine type and create BaseItem
         BaseItem baseItem;
         BaseItemKind kind;
 
         if (metadata is TmdbMovie tmdbMovie)
         {
-            // First item gets NO quality tag (clean title), others get quality tags
+            // First version keeps the clean title
             var quality = firstItem == null ? "" : task.Quality;
             var index = firstItem == null ? 0 : task.Index;
 
@@ -748,9 +658,7 @@ public async Task<(BaseItem? Item, bool Created)> InsertMeta(
         }
         else if (metadata is TmdbTvShow tmdbShow)
         {
-            // For series, we only create ONE series item (no quality versioning for TV shows)
-            // Jellyfin doesn't handle multiple series or episode versions properly
-            // We only process the first task for the series item itself
+            // One series item only; Jellyfin doesn't handle series/episode versions
             if (task != tasks[0]) continue;
 
             baseItem = IntoBaseItem(tmdbShow); // Primary series item
@@ -768,14 +676,12 @@ public async Task<(BaseItem? Item, bool Created)> InsertMeta(
             continue;
         }
 
-        // Mark all items after the first as virtual (Gelato pattern)
-        // This hides them from library listings but makes them available as versions
+        // Extra versions are virtual: hidden from listings, available as versions
         if (firstItem != null)
         {
             baseItem.IsVirtualItem = true;
         }
 
-        // Prevent duplicate inserts
         await _insertLock.WaitAsync(ct);
         try
         {
@@ -792,7 +698,6 @@ public async Task<(BaseItem? Item, bool Created)> InsertMeta(
                 continue;
             }
 
-            // Insert into container
             parent.AddChild(baseItem);
             _log.LogDebug("Jfresolve: Inserted {Kind} '{Name}' with ID {Id}",
                 kind, baseItem.Name, baseItem.Id);
@@ -810,7 +715,7 @@ public async Task<(BaseItem? Item, bool Created)> InsertMeta(
             _insertLock.Release();
         }
 
-        // Save images only for the first version created (artwork is identical)
+        // Artwork is the same for every version
         if (anyCreated && task == tasks[0])
         {
             try
@@ -830,15 +735,13 @@ public async Task<(BaseItem? Item, bool Created)> InsertMeta(
             }
         }
 
-        // Update repository
         if (queueRefreshItem)
         {
             try
             {
-                // Basic update without full refresh for secondary items
                 await baseItem.UpdateToRepositoryAsync(ItemUpdateType.MetadataImport, ct);
 
-                // Only trigger full refresh for the first item to ensure immediate UI visibility
+                // Full refresh on the primary item only, so it shows up in the UI right away
                 if (task == tasks[0])
                 {
                     var options = new MetadataRefreshOptions(new DirectoryService(_fileSystem))
@@ -878,11 +781,7 @@ public async Task<(BaseItem? Item, bool Created)> InsertMeta(
     return (firstItem, anyCreated);
 }
 
-
-
-/// <summary>
-/// Save image with retry logic to handle file locking issues (exponential backoff)
-/// </summary>
+/// <summary>Saves an image, retrying with backoff while the file is locked.</summary>
 private async Task SaveImageWithRetry(BaseItem item, string url, ImageType imageType, CancellationToken ct)
 {
     const int maxRetries = 5;
@@ -920,13 +819,12 @@ private async Task SaveImageWithRetry(BaseItem item, string url, ImageType image
 
     private async Task SaveImageToLocation(byte[] data, string path, CancellationToken ct)
     {
-        // Get or create a lock for this specific file path to prevent concurrent writes
+        // Serialize writes to the same file
         var pathLock = _pathLocks.GetOrAdd(path, _ => new SemaphoreSlim(1, 1));
         await pathLock.WaitAsync(ct);
 
         try
         {
-            // Ensure directory exists
             var directory = Path.GetDirectoryName(path);
             if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
             {
@@ -971,13 +869,9 @@ private async Task SaveImagesForItem(BaseItem item, TmdbTvShow meta, Cancellatio
     }
 }
 
-
-    /// <summary>
-    /// Creates real seasons and episodes for a series from TMDB data
-    /// </summary>
     public async Task CreateSeasonsAndEpisodesForSeries(Series series, TmdbTvShow tmdbShow, CancellationToken ct)
     {
-        // Avoid redundant syncs
+        // Skip if synced recently
         var now = DateTime.UtcNow;
         if (_syncCache.TryGetValue(series.Id, out var lastSync))
         {
@@ -989,13 +883,12 @@ private async Task SaveImagesForItem(BaseItem item, TmdbTvShow meta, Cancellatio
             }
         }
 
-        // Get or create a lock for this specific item
         var itemLock = _itemLocks.GetOrAdd(series.Id, _ => new SemaphoreSlim(1, 1));
         await itemLock.WaitAsync(ct);
 
         try
         {
-            // Re-check cache inside lock in case another thread just finished
+            // Another caller may have synced while we waited
             if (_syncCache.TryGetValue(series.Id, out lastSync))
             {
                 if (now - lastSync < CacheExpiry)
@@ -1010,7 +903,6 @@ private async Task SaveImagesForItem(BaseItem item, TmdbTvShow meta, Cancellatio
             var config = JfresolvePlugin.Instance?.Configuration;
             if (config == null) return;
 
-            // Updated cache time
             _syncCache[series.Id] = now;
 
             var fullShow = await _tmdbService.GetTvDetailsAsync(tmdbShow.Id, config.TmdbApiKey);
@@ -1020,7 +912,7 @@ private async Task SaveImagesForItem(BaseItem item, TmdbTvShow meta, Cancellatio
                 return;
             }
 
-            // Set PresentationUniqueKey on series (critical for Jellyfin to find episodes)
+            // Required for Jellyfin to link episodes to the series
             series.PresentationUniqueKey = series.CreatePresentationUniqueKey();
             var seriesPresentationKey = series.PresentationUniqueKey;
 
@@ -1043,9 +935,6 @@ private async Task SaveImagesForItem(BaseItem item, TmdbTvShow meta, Cancellatio
         }
     }
 
-    /// <summary>
-    /// Creates a season and all its episodes from TMDB data
-    /// </summary>
     public async Task CreateSeasonWithEpisodes(
         Series series,
         TmdbTvShow tmdbShow,
@@ -1057,7 +946,6 @@ private async Task SaveImagesForItem(BaseItem item, TmdbTvShow meta, Cancellatio
     {
         try
         {
-            // Check if season already exists
             var existingSeasons = _libraryManager
                 .GetItemList(new InternalItemsQuery
                 {
@@ -1078,7 +966,6 @@ private async Task SaveImagesForItem(BaseItem item, TmdbTvShow meta, Cancellatio
             }
             else
             {
-                // Create season
                 season = new Season
                 {
                     Id = Guid.NewGuid(),
@@ -1093,20 +980,17 @@ private async Task SaveImagesForItem(BaseItem item, TmdbTvShow meta, Cancellatio
                     PremiereDate = seasonInfo.GetSeasonAirDateTime(),
                 };
 
-                // Copy provider IDs to season
                 foreach (var providerId in series.ProviderIds)
                 {
                     season.SetProviderId(providerId.Key, providerId.Value);
                 }
 
-                // Add season to series
                 series.AddChild(season);
 
                 _log.LogInformation("Jfresolve: Created Season {SeasonNumber} for series '{Name}'",
                     seasonInfo.SeasonNumber, series.Name);
             }
 
-            // Fetch episode details for this season
             var seasonDetails = await _tmdbService.GetSeasonDetailsAsync(tmdbShow.Id, seasonInfo.SeasonNumber, config.TmdbApiKey);
             if (seasonDetails == null || seasonDetails.Episodes == null || seasonDetails.Episodes.Count == 0)
             {
@@ -1118,11 +1002,9 @@ private async Task SaveImagesForItem(BaseItem item, TmdbTvShow meta, Cancellatio
             _log.LogInformation("Jfresolve: Creating {Count} episodes for series '{Name}' Season {SeasonNumber}",
                 seasonDetails.Episodes.Count, series.Name, seasonInfo.SeasonNumber);
 
-            // Create all episodes for this season
-            // Note: Quality versioning removed for episodes - Jellyfin doesn't handle episode versions well
+            // One episode per number; Jellyfin doesn't handle episode versions
             foreach (var tmdbEpisode in seasonDetails.Episodes)
             {
-                // Create only one episode per episode number (no quality versions)
                 await CreateEpisode(series, season, tmdbShow, tmdbEpisode, seriesPresentationKey, config, ct, "", 0);
             }
         }
@@ -1133,9 +1015,6 @@ private async Task SaveImagesForItem(BaseItem item, TmdbTvShow meta, Cancellatio
         }
     }
 
-    /// <summary>
-    /// Creates a single episode with proper API controller path
-    /// </summary>
     public Task CreateEpisode(
         Series series,
         Season season,
@@ -1149,7 +1028,6 @@ private async Task SaveImagesForItem(BaseItem item, TmdbTvShow meta, Cancellatio
     {
         try
         {
-            // Build the unique identifier part for this version
             var versionSuffix = "";
             if (!string.IsNullOrEmpty(quality))
             {
@@ -1157,7 +1035,6 @@ private async Task SaveImagesForItem(BaseItem item, TmdbTvShow meta, Cancellatio
                 versionSuffix = index > 0 ? $" [{qualityTag} #{index + 1}]" : $" [{qualityTag}]";
             }
 
-            // Check if episode version already exists
             var existingEpisodes = _libraryManager
                 .GetItemList(new InternalItemsQuery
                 {
@@ -1176,12 +1053,9 @@ private async Task SaveImagesForItem(BaseItem item, TmdbTvShow meta, Cancellatio
                 return Task.CompletedTask;
             }
 
-            // Generate stable GUID for this episode version
-            // Combine episode info into unique string then hash
             var episodeSeed = $"tv:{tmdbShow.Id}:{season.IndexNumber}:{tmdbEpisode.EpisodeNumber}:{quality}:{index}";
             var episodeId = GenerateJfresolveGuid("episode", tmdbShow.Id, quality, (season.IndexNumber ?? 0) * 1000 + (tmdbEpisode.EpisodeNumber) + index * 10000);
 
-            // Build the API controller URL for episode playback
             var serverUrl = config?.JellyfinServerUrl ?? "http://localhost:8096";
             var normalizedUrl = serverUrl.TrimEnd('/');
             var episodePath = $"{normalizedUrl}/Plugins/Jfresolve/resolve/series/{tmdbShow.ImdbId}?season={season.IndexNumber}&episode={tmdbEpisode.EpisodeNumber}";
@@ -1194,7 +1068,6 @@ private async Task SaveImagesForItem(BaseItem item, TmdbTvShow meta, Cancellatio
                 episodePath += $"&index={index}";
             }
 
-            // Create episode
             var episode = new Episode
             {
                 Id = episodeId,
@@ -1213,17 +1086,14 @@ private async Task SaveImagesForItem(BaseItem item, TmdbTvShow meta, Cancellatio
                 SeriesPresentationUniqueKey = seriesPresentationKey,
             };
 
-            // Set PresentationUniqueKey on episode
             episode.PresentationUniqueKey = episode.GetPresentationUniqueKey();
 
-            // Copy provider IDs from series
             foreach (var providerId in series.ProviderIds)
             {
                 episode.SetProviderId(providerId.Key, providerId.Value);
             }
             episode.SetProviderId("Jfresolve", episodeSeed);
 
-            // Add episode image if available
             if (!string.IsNullOrWhiteSpace(tmdbEpisode.StillPath))
             {
                 episode.ImageInfos = new[]
@@ -1236,7 +1106,6 @@ private async Task SaveImagesForItem(BaseItem item, TmdbTvShow meta, Cancellatio
                 };
             }
 
-            // Add episode to season
             season.AddChild(episode);
 
             _log.LogDebug("Jfresolve: Created Episode S{Season}E{Episode}{Version} '{Name}' with path {Path}",
@@ -1282,21 +1151,13 @@ private async Task SaveImagesForItem(BaseItem item, TmdbTvShow meta, Cancellatio
         return tasks;
     }
 
-    // ============ DELETE SUPPORT ============
-
-    /// <summary>
-    /// Check if item is a Jfresolve virtual item
-    /// </summary>
     public bool IsJfresolve(BaseItem item)
     {
         var jfresolveId = item.GetProviderId("Jfresolve");
         return !string.IsNullOrWhiteSpace(jfresolveId);
     }
 
-    /// <summary>
-    /// Check if user can delete the item
-    /// We only check permissions since Jellyfin excludes remote items by default
-    /// </summary>
+    /// <summary>Permission check only; Jellyfin already excludes remote items from file deletion.</summary>
     public virtual bool CanDelete(BaseItem item, User user)
     {
         var allCollectionFolders = _libraryManager.GetUserRootFolder().Children.OfType<Folder>().ToList();

@@ -15,10 +15,7 @@ using Microsoft.AspNetCore.Http;
 
 namespace Jfresolve.Decorators;
 
-/// <summary>
-/// Decorates IItemRepository to filter virtual items from API listings (Gelato pattern)
-/// This prevents duplicate quality items from appearing in the library
-/// </summary>
+/// <summary>Hides virtual quality versions from library listings.</summary>
 public sealed class JfresolveItemRepository : IItemRepository
 {
     private readonly IItemRepository _inner;
@@ -47,10 +44,8 @@ public sealed class JfresolveItemRepository : IItemRepository
     {
         var ctx = _http?.HttpContext;
 
-        // Apply filters when this is an API listing
         if (ctx is not null && ctx.IsApiListing() && filter.IsDeadPerson is null)
         {
-            // For movie/series/episode queries, filter out virtual items
             if (
                 !filter.IncludeItemTypes.Any()
                 || filter.IncludeItemTypes.Intersect(
@@ -58,7 +53,6 @@ public sealed class JfresolveItemRepository : IItemRepository
                 ).Any()
             )
             {
-                // Hide virtual items from library listings
                 if (filter.IsVirtualItem is null)
                 {
                     filter.IsVirtualItem = false;
@@ -69,7 +63,6 @@ public sealed class JfresolveItemRepository : IItemRepository
         return filter;
     }
 
-    // All other methods just delegate to inner
     public void DeleteItem(params IReadOnlyList<Guid> ids) => _inner.DeleteItem(ids);
     public void SaveItems(IReadOnlyList<BaseItem> items, System.Threading.CancellationToken cancellationToken) => _inner.SaveItems(items, cancellationToken);
     public void SaveImages(BaseItem item) => _inner.SaveImages(item);
@@ -93,24 +86,18 @@ public sealed class JfresolveItemRepository : IItemRepository
     public bool GetIsPlayed(Jellyfin.Database.Implementations.Entities.User user, Guid id, bool recursive) => _inner.GetIsPlayed(user, id, recursive);
     public IReadOnlyDictionary<string, MediaBrowser.Controller.Entities.Audio.MusicArtist[]> FindArtists(IReadOnlyList<string> artistNames) => _inner.FindArtists(artistNames);
     
-    // Jellyfin 10.11.6 compatibility: ReattachUserDataAsync was added to IItemRepository
-    // Now that we're using 10.11.6 NuGet packages, we can implement it directly
     public Task ReattachUserDataAsync(BaseItem item, CancellationToken cancellationToken)
     {
         return _inner.ReattachUserDataAsync(item, cancellationToken);
     }
 }
 
-/// <summary>
-/// Extension methods for detecting API listing context
-/// </summary>
 public static class HttpContextExtensions
 {
     public static bool IsApiListing(this HttpContext ctx)
     {
         var path = ctx.Request.Path.Value ?? "";
 
-        // These are the main API endpoints that list items in the library
         return path.Contains("/Items", StringComparison.OrdinalIgnoreCase)
             || path.Contains("/Views", StringComparison.OrdinalIgnoreCase)
             || path.Contains("/Latest", StringComparison.OrdinalIgnoreCase)

@@ -15,9 +15,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Jfresolve.ScheduledTasks;
 
-/// <summary>
-/// Scheduled task to automatically populate the Jfresolve library with trending/popular content from TMDB.
-/// </summary>
+/// <summary>Adds trending/popular/top rated TMDB titles to the library.</summary>
 public sealed class PopulateLibraryTask : IScheduledTask
 {
     private readonly ILibraryManager _libraryManager;
@@ -54,14 +52,12 @@ public sealed class PopulateLibraryTask : IScheduledTask
             return;
         }
 
-        // Check if auto-population is enabled
         if (!config.EnableAutoPopulation)
         {
             _log.LogInformation("Jfresolve: Auto-population is disabled in configuration");
             return;
         }
 
-        // Check TMDB API key
         if (string.IsNullOrWhiteSpace(config.TmdbApiKey))
         {
             _log.LogError("Jfresolve: TMDB API key not configured");
@@ -73,7 +69,6 @@ public sealed class PopulateLibraryTask : IScheduledTask
             config.PopulationSource,
             config.PopulationResultLimit);
 
-        // Parse exclusion list
         var excludedIds = new HashSet<int>();
         if (!string.IsNullOrWhiteSpace(config.ExclusionList))
         {
@@ -94,13 +89,11 @@ public sealed class PopulateLibraryTask : IScheduledTask
             var seriesAdded = 0;
             var skippedDuplicates = 0;
 
-            // Fetch content from multiple sources based on configuration
             progress.Report(10);
 
             var allMovies = new List<TmdbMovie>();
             var allTvShows = new List<TmdbTvShow>();
 
-            // Fetch from Trending source if enabled
             if (config.UseTrendingSource)
             {
                 _log.LogInformation("Jfresolve: Fetching trending content from TMDB...");
@@ -121,7 +114,6 @@ public sealed class PopulateLibraryTask : IScheduledTask
 
             progress.Report(25);
 
-            // Fetch from Popular source if enabled
             if (config.UsePopularSource)
             {
                 _log.LogInformation("Jfresolve: Fetching popular content from TMDB...");
@@ -140,7 +132,6 @@ public sealed class PopulateLibraryTask : IScheduledTask
 
             progress.Report(40);
 
-            // Fetch from Top Rated source if enabled
             if (config.UseTopRatedSource)
             {
                 _log.LogInformation("Jfresolve: Fetching top rated content from TMDB...");
@@ -157,7 +148,7 @@ public sealed class PopulateLibraryTask : IScheduledTask
                     topRatedMovies.Count, topRatedTvShows.Count);
             }
 
-            // If no sources are enabled, default to Trending for backward compatibility
+            // No source selected: default to Trending
             if (!config.UseTrendingSource && !config.UsePopularSource && !config.UseTopRatedSource)
             {
                 _log.LogWarning("Jfresolve: No content sources enabled, defaulting to Trending");
@@ -174,7 +165,7 @@ public sealed class PopulateLibraryTask : IScheduledTask
                 allTvShows.AddRange(defaultTvShows);
             }
 
-            // Remove duplicates (same TMDB ID might appear in multiple sources)
+            // The same title can appear in several sources
             var moviesToProcess = allMovies
                 .GroupBy(m => m.Id)
                 .Select(g => g.First())
@@ -189,7 +180,6 @@ public sealed class PopulateLibraryTask : IScheduledTask
 
             progress.Report(50);
 
-            // Apply filters: unreleased content
             if (config.FilterUnreleased)
             {
                 var cutoffDate = DateTime.UtcNow.AddDays(-config.UnreleasedBufferDays);
@@ -213,7 +203,6 @@ public sealed class PopulateLibraryTask : IScheduledTask
                     beforeFilterMovies, moviesToProcess.Count, beforeFilterTv, tvShowsToProcess.Count);
             }
 
-            // Apply exclusion list filter
             if (excludedIds.Count > 0)
             {
                 var beforeFilterMovies = moviesToProcess.Count;
@@ -230,7 +219,6 @@ public sealed class PopulateLibraryTask : IScheduledTask
                 }
             }
 
-            // Apply result limit
             var moviesToAdd = moviesToProcess.Take(config.PopulationResultLimit / 2).ToList();
             var tvShowsToAdd = tvShowsToProcess.Take(config.PopulationResultLimit / 2).ToList();
 
@@ -239,7 +227,6 @@ public sealed class PopulateLibraryTask : IScheduledTask
                 moviesToAdd.Count,
                 tvShowsToAdd.Count);
 
-            // Get the appropriate folders - USE AUTO-POPULATE PATHS
             var movieFolder = _jfresolveManager.TryGetMovieFolderForAutoPopulate();
             var seriesFolder = _jfresolveManager.TryGetSeriesFolderForAutoPopulate();
             var animeFolder = _jfresolveManager.TryGetAnimeFolderForAutoPopulate();
@@ -259,7 +246,6 @@ public sealed class PopulateLibraryTask : IScheduledTask
             var totalItems = moviesToAdd.Count + tvShowsToAdd.Count;
             var processedItems = 0;
 
-            // Process movies
             foreach (var tmdbMovie in moviesToAdd)
             {
                 if (cancellationToken.IsCancellationRequested)
@@ -267,7 +253,6 @@ public sealed class PopulateLibraryTask : IScheduledTask
                     break;
                 }
 
-                // Skip if no IMDB ID
                 if (string.IsNullOrWhiteSpace(tmdbMovie.ImdbId))
                 {
                     _log.LogDebug("Jfresolve: Skipping movie '{Title}' - no IMDB ID", tmdbMovie.Title);
@@ -275,7 +260,6 @@ public sealed class PopulateLibraryTask : IScheduledTask
                     continue;
                 }
 
-                // Check for duplicates
                 if (ItemExists(tmdbMovie.Id, tmdbMovie.ImdbId))
                 {
                     _log.LogDebug(
@@ -293,7 +277,6 @@ public sealed class PopulateLibraryTask : IScheduledTask
                     var movie = _jfresolveManager.IntoBaseItem(tmdbMovie);
                     _jfresolveManager.SaveTmdbMetadata(movie.Id, tmdbMovie);
 
-                    // Route anime movies to anime folder if enabled
                     Folder targetFolder;
                     if (tmdbMovie.IsAnime() && animeFolder != null)
                     {
@@ -307,7 +290,7 @@ public sealed class PopulateLibraryTask : IScheduledTask
 
                     await _jfresolveManager.InsertMeta(movie.Id, targetFolder, tmdbMovie, true, cancellationToken);
 
-                    // Clear from cache after successful insertion to prevent memory buildup
+                    // Free the cached metadata
                     _jfresolveManager.RemoveTmdbMetadata(movie.Id);
 
                     moviesAdded++;
@@ -318,7 +301,7 @@ public sealed class PopulateLibraryTask : IScheduledTask
                         tmdbMovie.Id,
                         tmdbMovie.ImdbId);
 
-                    // Delay to prevent concurrent image processing issues
+                    // Spacing out inserts avoids concurrent image writes
                     await Task.Delay(500, cancellationToken);
                 }
                 catch (Exception ex)
@@ -334,7 +317,6 @@ public sealed class PopulateLibraryTask : IScheduledTask
                 progress.Report(50 + (processedItems * 40.0 / totalItems));
             }
 
-            // Process TV shows
             foreach (var tmdbTvShow in tvShowsToAdd)
             {
                 if (cancellationToken.IsCancellationRequested)
@@ -342,7 +324,6 @@ public sealed class PopulateLibraryTask : IScheduledTask
                     break;
                 }
 
-                // Skip if no IMDB ID
                 if (string.IsNullOrWhiteSpace(tmdbTvShow.ImdbId))
                 {
                     _log.LogDebug("Jfresolve: Skipping TV show '{Name}' - no IMDB ID", tmdbTvShow.Name);
@@ -350,7 +331,6 @@ public sealed class PopulateLibraryTask : IScheduledTask
                     continue;
                 }
 
-                // Check for duplicates
                 if (ItemExists(tmdbTvShow.Id, tmdbTvShow.ImdbId))
                 {
                     _log.LogDebug(
@@ -368,7 +348,6 @@ public sealed class PopulateLibraryTask : IScheduledTask
                     var series = _jfresolveManager.IntoBaseItem(tmdbTvShow);
                     _jfresolveManager.SaveTmdbMetadata(series.Id, tmdbTvShow);
 
-                    // Route anime TV shows to anime folder if enabled
                     Folder targetFolder;
                     if (tmdbTvShow.IsAnime() && animeFolder != null)
                     {
@@ -382,7 +361,6 @@ public sealed class PopulateLibraryTask : IScheduledTask
 
                     await _jfresolveManager.InsertMeta(series.Id, targetFolder, tmdbTvShow, true, cancellationToken);
 
-                    // Clear from cache after successful insertion to prevent memory buildup
                     _jfresolveManager.RemoveTmdbMetadata(series.Id);
 
                     seriesAdded++;
@@ -393,8 +371,7 @@ public sealed class PopulateLibraryTask : IScheduledTask
                         tmdbTvShow.Id,
                         tmdbTvShow.ImdbId);
 
-                    // Delay to prevent concurrent image processing issues
-                    // TV shows create many items (series + seasons + episodes), so use longer delay
+                    // Series create many child items, so wait longer
                     await Task.Delay(1000, cancellationToken);
                 }
                 catch (Exception ex)
@@ -410,18 +387,14 @@ public sealed class PopulateLibraryTask : IScheduledTask
                 progress.Report(50 + (processedItems * 40.0 / totalItems));
             }
 
-            // STRM mode: files are on disk, have Jellyfin scan them in
+            // STRM mode: let the library scan pick up the files
             if (_jfresolveManager.IsStrmMode)
             {
                 _jfresolveManager.QueueStrmScan();
             }
 
-            // Update last run timestamp
             config.LastPopulationRun = DateTime.UtcNow;
             JfresolvePlugin.Instance!.SaveConfiguration();
-
-            // Note: Items should appear in UI due to UpdateToRepositoryAsync calls with queueRefreshItem=true
-            // If items still don't appear, user may need to manually trigger a library scan
 
             progress.Report(100);
 
@@ -431,7 +404,6 @@ public sealed class PopulateLibraryTask : IScheduledTask
                 seriesAdded,
                 skippedDuplicates);
             
-            // Final UI refresh for containers to ensure everything shows up
             try
             {
                 var options = new MetadataRefreshOptions(new DirectoryService(_jfresolveManager.FileSystem))
@@ -472,22 +444,17 @@ public sealed class PopulateLibraryTask : IScheduledTask
         }
     }
 
-    /// <summary>
-    /// Checks if an item already exists in the library by TMDB ID or IMDB ID.
-    /// </summary>
     private bool ItemExists(int tmdbId, string? imdbId)
     {
         var allItems = _libraryManager.GetUserRootFolder().GetRecursiveChildren();
 
         foreach (var item in allItems)
         {
-            // Check if item is a Jfresolve item
             if (!_jfresolveManager.IsJfresolve(item))
             {
                 continue;
             }
 
-            // Check TMDB ID
             if (item.ProviderIds.TryGetValue("Tmdb", out var existingTmdbId))
             {
                 if (int.TryParse(existingTmdbId, out var parsedTmdbId) && parsedTmdbId == tmdbId)
@@ -496,7 +463,6 @@ public sealed class PopulateLibraryTask : IScheduledTask
                 }
             }
 
-            // Check IMDB ID
             if (!string.IsNullOrWhiteSpace(imdbId) &&
                 item.ProviderIds.TryGetValue("Imdb", out var existingImdbId) &&
                 existingImdbId == imdbId)
@@ -510,8 +476,7 @@ public sealed class PopulateLibraryTask : IScheduledTask
 
     public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()
     {
-        // Don't set a default trigger - let users configure it manually
-        // This prevents automatic runs until the user explicitly enables and schedules it
+        // No default trigger; users schedule it themselves
         return Array.Empty<TaskTriggerInfo>();
     }
 }

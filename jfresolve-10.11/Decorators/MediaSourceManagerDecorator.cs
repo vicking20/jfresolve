@@ -27,9 +27,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Jfresolve.Decorators;
 
-/// <summary>
-/// Decorator for IMediaSourceManager to support quality versioning for Jfresolve items
-/// </summary>
+/// <summary>Exposes quality versions of Jfresolve items as media sources.</summary>
 public class MediaSourceManagerDecorator : IMediaSourceManager
 {
     private readonly IMediaSourceManager _inner;
@@ -152,7 +150,6 @@ public class MediaSourceManagerDecorator : IMediaSourceManager
                 qualitySource.Timestamp = video.Timestamp;
             }
 
-            // Apply trick to ensure proper protocol and remote settings
             ApplyTrick(qualitySource);
 
             sources.Add(qualitySource);
@@ -167,9 +164,6 @@ public class MediaSourceManagerDecorator : IMediaSourceManager
         return sources;
     }
 
-    /// <summary>
-    /// Check if a media source needs to be probed
-    /// </summary>
     private bool NeedsProbe(MediaSourceInfo source)
     {
         if (source == null) return false;
@@ -180,9 +174,6 @@ public class MediaSourceManagerDecorator : IMediaSourceManager
         return noVideoStreams || runtimeTooShort;
     }
 
-    /// <summary>
-    /// Probe an item to populate its MediaStreams
-    /// </summary>
     private async Task ProbeItem(BaseItem item, CancellationToken cancellationToken)
     {
         var wasVirtual = item.IsVirtualItem;
@@ -288,7 +279,6 @@ public class MediaSourceManagerDecorator : IMediaSourceManager
                 qualitySource.Timestamp = video.Timestamp;
             }
 
-            // Apply trick to ensure proper protocol and remote settings
             ApplyTrick(qualitySource);
 
             sources.Add(qualitySource);
@@ -310,11 +300,9 @@ public class MediaSourceManagerDecorator : IMediaSourceManager
             return;
         }
 
-        // Set protocol and remote flag - let Jellyfin decide on transcoding based on its own logic
         info.Protocol = MediaProtocol.Http;
         info.IsRemote = true;
-        // Don't force transcoding - let Jellyfin decide based on codec compatibility, client capabilities, etc.
-        // SupportsDirectPlay, SupportsDirectStream, and SupportsTranscoding will be determined by Jellyfin
+        // Direct play / transcoding is left to Jellyfin.
     }
 
     private bool IsJfresolve(BaseItem item)

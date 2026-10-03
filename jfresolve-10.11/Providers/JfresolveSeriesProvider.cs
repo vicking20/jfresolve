@@ -24,7 +24,6 @@ public sealed class JfresolveSeriesProvider
     private readonly JfresolveManager _manager;
     private readonly TmdbService _tmdbService;
     private readonly IProviderManager _provider;
-    // Cache is now handled centrally in JfresolveManager
 
     public JfresolveSeriesProvider(
         ILogger<JfresolveSeriesProvider> logger,
@@ -40,7 +39,7 @@ public sealed class JfresolveSeriesProvider
         _tmdbService = tmdbService;
         _provider = provider;
 
-        // Hook into Jellyfin's refresh system - THIS IS THE KEY!
+        // Sync seasons/episodes whenever Jellyfin refreshes a Jfresolve series
         _provider.RefreshStarted += OnProviderManagerRefreshStarted;
     }
 
@@ -57,14 +56,12 @@ public sealed class JfresolveSeriesProvider
             return;
         }
 
-        // Check if this is a Jfresolve series
         if (!series.ProviderIds.ContainsKey("Jfresolve"))
         {
             return;
         }
 
-        // Locking and cache-per-item checks are now handled inside JfresolveManager.CreateSeasonsAndEpisodesForSeries
-        // to prevent race conditions between the provider and scheduled tasks.
+        // Locking and caching are handled in CreateSeasonsAndEpisodesForSeries
 
         try
         {
@@ -74,7 +71,6 @@ public sealed class JfresolveSeriesProvider
                 return;
             }
 
-            // Get TMDB ID from series provider IDs
             if (!series.ProviderIds.TryGetValue("Tmdb", out var tmdbId) ||
                 !int.TryParse(tmdbId, out var tmdbIdInt))
             {
@@ -85,10 +81,8 @@ public sealed class JfresolveSeriesProvider
             _log.LogInformation("Jfresolve: Auto-syncing seasons for {Name} (TMDB ID: {TmdbId})",
                 series.Name, tmdbIdInt);
 
-            // Fetch external IDs to get IMDB ID
             var externalIds = await _tmdbService.GetExternalIdsAsync(tmdbIdInt, "tv", config.TmdbApiKey);
 
-            // Create TmdbTvShow object for our existing method
             var tmdbShow = new TmdbTvShow
             {
                 Id = tmdbIdInt,
@@ -98,7 +92,6 @@ public sealed class JfresolveSeriesProvider
                 ImdbId = externalIds?.ImdbId
             };
 
-            // Use our existing CreateSeasonsAndEpisodesForSeries method
             await _manager.CreateSeasonsAndEpisodesForSeries(series, tmdbShow, CancellationToken.None);
 
             _log.LogInformation("Jfresolve: Successfully auto-synced seasons for {Name}", series.Name);

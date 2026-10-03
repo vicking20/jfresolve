@@ -7,10 +7,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Jfresolve.Filters;
 
-/// <summary>
-/// Intercepts image requests and redirects to TMDB poster URLs
-/// Based on Gelato's ImageResourceFilter pattern
-/// </summary>
+/// <summary>Serves TMDB artwork for search results not yet in the library.</summary>
 public sealed class ImageResourceFilter : IAsyncResourceFilter
 {
     private readonly JfresolveManager _manager;
@@ -30,7 +27,6 @@ public sealed class ImageResourceFilter : IAsyncResourceFilter
         ResourceExecutionDelegate next
     )
     {
-        // Only intercept GetItemImage action
         if (ctx.ActionDescriptor is not ControllerActionDescriptor cad
             || cad.ActionName != "GetItemImage")
         {
@@ -40,7 +36,6 @@ public sealed class ImageResourceFilter : IAsyncResourceFilter
 
         var routeValues = ctx.RouteData.Values;
 
-        // Get itemId from route
         if (!routeValues.TryGetValue("itemId", out var guidString)
             || !Guid.TryParse(guidString?.ToString(), out var guid))
         {
@@ -48,7 +43,6 @@ public sealed class ImageResourceFilter : IAsyncResourceFilter
             return;
         }
 
-        // Try to get TMDB movie metadata
         var tmdbMovie = _manager.GetTmdbMetadata<TmdbMovie>(guid);
         if (tmdbMovie != null && !string.IsNullOrWhiteSpace(tmdbMovie.PosterPath))
         {
@@ -58,7 +52,6 @@ public sealed class ImageResourceFilter : IAsyncResourceFilter
             return;
         }
 
-        // Try to get TMDB TV show metadata
         var tmdbShow = _manager.GetTmdbMetadata<TmdbTvShow>(guid);
         if (tmdbShow != null && !string.IsNullOrWhiteSpace(tmdbShow.PosterPath))
         {
@@ -68,7 +61,6 @@ public sealed class ImageResourceFilter : IAsyncResourceFilter
             return;
         }
 
-        // No TMDB metadata found, let Jellyfin handle it
         await next();
     }
 }

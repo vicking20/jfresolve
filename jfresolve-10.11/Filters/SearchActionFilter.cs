@@ -14,9 +14,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Jfresolve.Filters;
 
-/// <summary>
-/// Intercepts search requests and returns TMDB results (based on Gelato's SearchActionFilter pattern)
-/// </summary>
+/// <summary>Returns TMDB results for Jellyfin searches.</summary>
 public class SearchActionFilter : IAsyncActionFilter, IOrderedFilter
 {
     private readonly IDtoService _dtoService;
@@ -41,21 +39,19 @@ public class SearchActionFilter : IAsyncActionFilter, IOrderedFilter
         ActionExecutionDelegate next
     )
     {
-        // Check if search is enabled in configuration
         if (!JfresolvePlugin.Instance?.Configuration.EnableSearch ?? true)
         {
             await next();
             return;
         }
 
-        // Check if this is a search action and get search term
         if (!IsSearchAction(ctx) || !TryGetSearchTerm(ctx, out var searchTerm))
         {
             await next();
             return;
         }
 
-        // Handle "local:" prefix - pass through to default Jellyfin search
+        // "local:" prefix searches the local library only
         if (searchTerm.StartsWith("local:", StringComparison.OrdinalIgnoreCase))
         {
             ctx.ActionArguments["searchTerm"] = searchTerm.Substring(6).Trim();
@@ -63,20 +59,16 @@ public class SearchActionFilter : IAsyncActionFilter, IOrderedFilter
             return;
         }
 
-        // Get requested item types from query parameters
         var requestedTypes = GetRequestedItemTypes(ctx);
         if (requestedTypes.Count == 0)
         {
-            // No supported types requested, let Jellyfin handle it
             await next();
             return;
         }
 
-        // Get pagination parameters
         ctx.TryGetActionArgument("startIndex", out var start, 0);
         ctx.TryGetActionArgument("limit", out var limit, 25);
 
-        // Search TMDB for all requested types
         var baseItems = await SearchTmdbAsync(searchTerm, requestedTypes);
 
         _log.LogInformation(
@@ -88,13 +80,10 @@ public class SearchActionFilter : IAsyncActionFilter, IOrderedFilter
             baseItems.Count
         );
 
-        // Convert BaseItems to DTOs (similar to Gelato's ConvertMetasToDtos)
         var dtos = ConvertBaseItemsToDtos(baseItems);
 
-        // Apply pagination
         var paged = dtos.Skip(start).Take(limit).ToArray();
 
-        // Return search results
         ctx.Result = new OkObjectResult(
             new QueryResult<BaseItemDto>
             {
@@ -104,9 +93,6 @@ public class SearchActionFilter : IAsyncActionFilter, IOrderedFilter
         );
     }
 
-    /// <summary>
-    /// Search TMDB for all requested item types (similar to Gelato's SearchMetasAsync)
-    /// </summary>
     private async Task<List<BaseItem>> SearchTmdbAsync(string searchTerm, HashSet<BaseItemKind> requestedTypes)
     {
         var tasks = new List<Task<List<BaseItem>>>();
@@ -120,9 +106,6 @@ public class SearchActionFilter : IAsyncActionFilter, IOrderedFilter
         return results.SelectMany(r => r).ToList();
     }
 
-    /// <summary>
-    /// Convert BaseItems to DTOs (based on Gelato's ConvertMetasToDtos)
-    /// </summary>
     private List<BaseItemDto> ConvertBaseItemsToDtos(List<BaseItem> baseItems)
     {
         var options = new DtoOptions
@@ -137,7 +120,6 @@ public class SearchActionFilter : IAsyncActionFilter, IOrderedFilter
         {
             var dto = _dtoService.GetBaseItemDto(baseItem, options);
 
-            // Use the BaseItem's ID (already set in JfresolveManager)
             dto.Id = baseItem.Id;
 
             dtos.Add(dto);
@@ -172,17 +154,14 @@ public class SearchActionFilter : IAsyncActionFilter, IOrderedFilter
             new[] { BaseItemKind.Movie, BaseItemKind.Series }
         );
 
-        // Check for includeItemTypes parameter
         if (ctx.TryGetActionArgument<BaseItemKind[]>("includeItemTypes", out var includeTypes)
             && includeTypes != null
             && includeTypes.Length > 0)
         {
             requested = new HashSet<BaseItemKind>(includeTypes);
-            // Only keep Movie and Series (we only support these types)
             requested.IntersectWith(new[] { BaseItemKind.Movie, BaseItemKind.Series });
         }
 
-        // Remove excluded types
         if (ctx.TryGetActionArgument<BaseItemKind[]>("excludeItemTypes", out var excludeTypes)
             && excludeTypes != null
             && excludeTypes.Length > 0)
@@ -190,7 +169,7 @@ public class SearchActionFilter : IAsyncActionFilter, IOrderedFilter
             requested.ExceptWith(excludeTypes);
         }
 
-        // If mediaTypes=Video, exclude Series (Gelato pattern)
+        // mediaTypes=Video excludes series
         if (ctx.TryGetActionArgument<MediaType[]>("mediaTypes", out var mediaTypes)
             && mediaTypes != null
             && mediaTypes.Contains(MediaType.Video))
@@ -202,7 +181,6 @@ public class SearchActionFilter : IAsyncActionFilter, IOrderedFilter
     }
 }
 
-// Helper extension methods
 public static class ActionContextExtensions
 {
     public static bool TryGetActionArgument<T>(

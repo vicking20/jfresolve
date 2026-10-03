@@ -9,10 +9,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Jfresolve.ScheduledTasks;
 
-/// <summary>
-/// Scheduled task to purge all Jfresolve items from the library
-/// Accessible from Dashboard → Scheduled Tasks
-/// </summary>
+/// <summary>Removes all Jfresolve items and .strm folders.</summary>
 public sealed class PurgeJfresolveTask : IScheduledTask
 {
     private readonly ILogger<PurgeJfresolveTask> _log;
@@ -48,7 +45,6 @@ public sealed class PurgeJfresolveTask : IScheduledTask
         var allChildren = new List<MediaBrowser.Controller.Entities.BaseItem>();
         var processedFolders = new HashSet<Guid>(); // Track folders to avoid duplicate logging
 
-        // Helper function to add folder items
         void AddFolderItems(MediaBrowser.Controller.Entities.Folder? folder, string folderType)
         {
             if (folder == null) return;
@@ -78,13 +74,10 @@ public sealed class PurgeJfresolveTask : IScheduledTask
             }
         }
 
-        // Check all possible folder paths (Simple and Advanced mode)
-        // Simple mode / Auto-populate paths
         AddFolderItems(_manager.TryGetMovieFolderForAutoPopulate(), "movie auto-populate");
         AddFolderItems(_manager.TryGetSeriesFolderForAutoPopulate(), "series auto-populate");
         AddFolderItems(_manager.TryGetAnimeFolderForAutoPopulate(), "anime auto-populate");
 
-        // Search paths (Advanced mode)
         AddFolderItems(_manager.TryGetMovieFolderForSearch(), "movie search");
         AddFolderItems(_manager.TryGetSeriesFolderForSearch(), "series search");
         AddFolderItems(_manager.TryGetAnimeFolderForSearch(), "anime search");
@@ -120,11 +113,9 @@ public sealed class PurgeJfresolveTask : IScheduledTask
                 _log.LogWarning(ex, "Jfresolve: Failed to delete item {Name} (ID: {Id})", child.Name, child.Id);
             }
 
-            // Report progress
             progress?.Report(Math.Min(100.0, (double)(deleted + skipped) / total * 100.0));
         }
 
-        // Remove plugin-written .strm folders (STRM mode, or left over from it)
         var strmDeleted = _manager.PurgeStrmFolders();
         if (strmDeleted > 0)
         {
@@ -132,9 +123,7 @@ public sealed class PurgeJfresolveTask : IScheduledTask
             _manager.QueueStrmScan();
         }
 
-        // Clear metadata cache
         _log.LogInformation("Jfresolve: Clearing metadata cache");
-        // Note: Gelato has a ClearCache method, we could add one if needed
 
         progress?.Report(100.0);
 

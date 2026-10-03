@@ -2,9 +2,9 @@
   <img src="https://raw.githubusercontent.com/vicking20/jfresolve/main/jfresolve.png" alt="Jfresolve Logo" width="128" height="128">
 </p>
 
-<h1 align="center">Jfresolve - Jellyfin Plugin</h1>
+<h1 align="center">Jfresolve</h1>
 
-A Jellyfin plugin that integrates external streaming sources (Stremio addons) from a debrid provider with your Jellyfin library, enabling on-demand content discovery and streaming.
+Jellyfin plugin that adds movies and shows from TMDB to your library and streams them through a Stremio addon (Torrentio, AIOStreams, MediaFusion, etc.) with a debrid provider. Nothing is downloaded or stored.
 
 <p align="center">
   <a href="https://ko-fi.com/vicking20" target="_blank">
@@ -18,163 +18,112 @@ A Jellyfin plugin that integrates external streaming sources (Stremio addons) fr
   </a>
 </p>
 
-Similar project: If you aren't interested in using the plugin, you can instead use the webapp: [**JF-Resolve**](https://github.com/vicking20/jf-resolve) directly with Jellyfin.
+Prefer a standalone web app instead of a plugin? See [jf-resolve](https://github.com/vicking20/jf-resolve).
 
 ## Features
 
-- **External Search Results**: Search TMDB and display results from external streaming sources.
-- **Library Population**: Automatically populate your Jellyfin library with popular and trending content from TMDB.
-- **Movie & Series Support**: Full support for movies, TV series, and anime.
-- **Anime Categorization**: Optional dedicated anime library with automatic genre-based routing.
-- **FFmpeg Tuning**: Configurable FFmpeg settings for better remote stream detection.
-- **Scheduled Tasks**: Automate library population, series updates, and content purging.
-- **Flexible Configuration**: Comprehensive settings for customization.
-- **Preferred Quality Selection**: Choose your preferred stream quality (4K, 1080p, etc.) and the plugin will automatically select the best stream for you.
-- **Failover System**: EXPERIMENTAL: Automatic retry for dead links with configurable time windows - prevents repeated failures on the same dead stream.
+- TMDB results in Jellyfin search; opening one adds it to the library
+- Auto-population from TMDB trending, popular and top rated
+- Movies, series and anime (optional separate anime library)
+- Preferred quality, with optional extra quality versions per movie
+- Optional `.strm` file output for third-party clients (Infuse, etc.)
+- Stream resume when the debrid host drops the connection
+- Failover to the next link when a stream is dead (experimental)
+- Scheduled tasks for population, series updates and cleanup
 
-## Benefits
+## Requirements
 
-- **Efficient Library Management**: Simplify your media library with automated population and external search results.
-- **Enhanced User Experience**: Discover new content directly through your Jellyfin UI.
-- **Customizable Settings**: Tailor your plugin to your preferences with flexible configuration options.
-- **Less dependency on the arr stack**: You can use jfresolve now without jellyseerr, radarr, sonarr, prowlarr,etc. Just your tmdb api key, debrid authentication, and some stremio streaming addon manifest link.
-- **Smaller file footprint**: Media is not stored directly, media is streamed from the source, you dont need to have tons of storage to have a large library.
-
-## Versions
-
-### **jfresolve-10.12** (Current)
-- **Target**: Jellyfin 10.11.0+ (Tested and compatible with Jellyfin 10.11.6)
-- **Framework**: .NET 9.0
-- **Status**: Not Actively Maintained
-- **Latest Release**: See [Releases](../../releases)
-
-### Recent Changes (v1.0.0.12+)
-
-- **Jellyfin 10.11.6 Compatibility**: Fixed interface implementation issues with `IItemRepository.ReattachUserDataAsync` method
-- **Streaming Improvements**: Enhanced HTTP range request support (206 Partial Content) for FFmpeg seeking
-- **Stream Proxying**: Implemented proper stream proxying instead of redirects for better compatibility with Jellyfin 10.11.6
-- **Header Handling**: Fixed Content-Range header handling to prevent streaming errors
-- **NuGet Packages**: Updated to Jellyfin 10.11.6 packages for proper interface compatibility
+- Jellyfin 10.11.6 or later
+- TMDB API key ([get one here](https://www.themoviedb.org/settings/api))
+- A Stremio addon manifest URL with your debrid key configured
 
 ## Installation
 
-1. Add the link to the plugin to your Jellyfin server's plugin repository: `https://raw.githubusercontent.com/vicking20/jfresolve/refs/heads/main/repository.json`
-2. Install and configure your plugin. Tested with Torrentio, TorrentioRD, Aiostreams, MediaFusion. Your plugin needs to have your real debrid key setup.
-3. During the first time configuration or after adding a new library path, after saving your settings, you should restart Jellyfin, then trigger a library refresh for changes to take effect.
-4. If you have used an older version of Jfresolve older than 1.0.0.3, you need to uninstall the older version.
+1. In Jellyfin, go to **Dashboard → Plugins → Repositories** and add:
+   `https://raw.githubusercontent.com/vicking20/jfresolve/refs/heads/main/repository.json`
+2. Install **Jfresolve** from the catalog and restart Jellyfin.
+3. Create a Movies and/or Shows library pointing at an empty, writable folder.
+4. Open the plugin settings, fill in the required fields and the library paths, save, restart Jellyfin, then scan the libraries once.
+
+Upgrading from a version older than 1.0.0.3: uninstall the old version first.
+
 ## Configuration
 
-### Required Settings
+### Required
 
-- **TMDb API Key**: Get your free API key at [themoviedb.org/settings/api](https://www.themoviedb.org/settings/api).
-- **Jellyfin Base URL**: Your Jellyfin server URL (e.g., `http://127.0.0.1:8096`).
-- **Addon Manifest URL**: Stremio addon manifest URL (required for streaming).
-  **Sample Add-on url** ```stremio://torrentio.strem.fun/providers=yts,eztv,rarbg,1337x,thepiratebay,kickasstorrents,torrentgalaxy,magnetdl,horriblesubs,nyaasi,tokyotosho,anidex|qualityfilter=brremux,scr,cam|limit=1|debridoptions=nodownloadlinks,nocatalog|realdebrid=(input your real debrid key here with no brackets)/manifest.json```
-  The sample add-on url can be used in your configuration, replace **(input your real debrid key here with no brackets)** with your real debrid key and paste into the plugin settings Addon link (Manifest JSON URL).
-- **Debrid Account**: Tested with Real Debrid, other providers can be tested. Debrid provider is configured in your stremio plugin settings.
-- **Library Paths**: At least one library path (Movies or Shows).
+| Setting | Notes |
+| --- | --- |
+| TMDB API Key | v3 key |
+| Jellyfin Server URL | Address your **clients** can reach, e.g. `http://192.168.1.10:8096`. Not `localhost` unless every client runs on the server. |
+| Addon Manifest URL | `stremio://` or `https://` URL ending in `/manifest.json` |
+| Library paths | At least one Movies or Shows path. Must match the library folder path as Jellyfin sees it (inside the container for Docker). |
 
-### Optional Settings
+Example Torrentio URL (replace the key):
 
-- **Enable Search Interception**: When enabled, search queries will return results from external search provider.
-- **Preferred Stream Quality**: Select preferred quality when multiple stream options are available. Auto will select the highest quality stream.
-- **Search Result Limit**: Maximum number of results to return from TMDB searches.
-- **Unreleased Buffer Days**: Number of days before official release date to consider content as "released".
-- **Enable Separate Anime Folder**: When enabled, anime shows (TMDB genre ID 16) will be added to a separate anime folder instead of the main series folder.
-- **Enable Auto Library Population**: Automatically populate your library with trending/popular/top rated content.
-- **Items Per Run**: Maximum number of new items to add each time the population task runs.
-- **Enable Custom FFmpeg Settings**: When disabled, Jellyfin's default FFmpeg settings will be used. Enable this to customize probe and analyze settings for better stream detection.
-- **Enable Movie Failover**: Automatically retry failed movie streams with alternative quality versions.
-- **Enable Show Failover**: Automatically retry failed TV show streams with alternative quality versions.
-- **Failover Grace Period**: Time in seconds to wait before retrying a failed stream (prevents immediate retry spam).
-- **Failover Window**: Time in seconds during which a failed stream won't be retried again (prevents continuous failures).
+```
+stremio://torrentio.strem.fun/providers=yts,eztv,rarbg,1337x,thepiratebay,kickasstorrents,torrentgalaxy,magnetdl,horriblesubs,nyaasi,tokyotosho,anidex|qualityfilter=brremux,scr,cam|limit=1|debridoptions=nodownloadlinks,nocatalog|realdebrid=YOUR_KEY/manifest.json
+```
 
-## Scheduled Tasks
+### Optional
 
-Jfresolve comes with three scheduled tasks to automate your library management:
+| Setting | Notes |
+| --- | --- |
+| Enable Search Interception | Show TMDB results in Jellyfin search |
+| Write .strm Files | Write `.strm` files instead of adding items to the database. Use this for Infuse and other clients that can't play the default items. Run **Clear All Jfresolve Items** before switching. |
+| Preferred Quality | Auto picks the highest. Any other value is a ceiling: if it isn't available, the next lower quality is used. |
+| Quality versions (4K / 1080p / 720p / Unknown) | Adds extra versions per movie. Does not affect which stream the main item plays. |
+| Separate anime folder | Routes TMDB animation titles to the anime library |
+| Auto population | Sources, items per run and exclusion list |
+| Custom FFmpeg settings | Probe size and analyze duration for remote streams |
+| Movie / Show failover | Try the next link when a stream fails. Grace period and window are in seconds. |
 
-- **Populate Jfresolve Library**: Automatically populates your library with trending/popular content from TMDB.
-- **Update Jfresolve Series**: Keeps your TV series up-to-date with new seasons/episodes.
-- **Clear All Jfresolve Items**: Removes all items added by Jfresolve from your library.
+## Scheduled tasks
 
-To configure the scheduled tasks, go to **Dashboard → Scheduled Tasks** in your Jellyfin server.
+Under **Dashboard → Scheduled Tasks → Jfresolve**. None have a default schedule.
 
-## Building from Source
+- **Populate Jfresolve Library**: adds titles from the enabled TMDB sources
+- **Update Jfresolve Series**: adds new seasons and episodes
+- **Clear All Jfresolve Items**: removes everything Jfresolve added, including `.strm` folders it wrote
 
-### Prerequisites
+## How it works
 
-- .NET 9.0 SDK
+Each item's path is a plugin URL such as `/Plugins/Jfresolve/resolve/movie/tt1234567`. On playback the plugin asks the addon for streams, picks one by quality and proxies it to Jellyfin. In `.strm` mode the same URL is written into the file, so links never go stale.
 
-### Build Steps
+## Troubleshooting
+
+**Plugin shows as "Unsupported"**
+Update Jellyfin to 10.11.6 or later, then reinstall the latest version.
+
+**Populate task does nothing or fails to create items**
+The library folder must exist, be writable and have been scanned at least once. Docker volumes mounted `:ro` won't work.
+
+**Plays in the browser but not in Infuse or other apps**
+Set Jellyfin Server URL to an address the client can reach, and enable **Write .strm Files**.
+
+**403 errors**
+Check the log line. `Addon returned 403` usually means the addon (or Cloudflare in front of it) is blocking your server's IP. `Stream host returned 403` comes from the debrid provider, often due to VPN or datacenter IPs.
+
+**Wrong quality picked**
+Set **Preferred Quality**. The quality version toggles only add extra versions. If the addon returns nothing at that quality, check the addon's own quality filter.
+
+**4K playback stops after a few minutes**
+Update to 1.0.0.14 or later, which resumes dropped connections.
+
+## Building
 
 ```bash
 cd jfresolve-10.11
 dotnet build -c Release
 ```
 
-Compiled DLL will be at:
-- `jfresolve-10.11/bin/Release/net9.0/Jfresolve.dll`
+Output: `jfresolve-10.11/bin/Release/net9.0/Jfresolve.dll`
 
-## Troubleshooting
+## Credits
 
-### Plugin doesn't show in Dashboard
-
-- Ensure correct version for your Jellyfin release.
-- Check plugin folder permissions.
-- Restart Jellyfin after installation.
-
-### Search returns no results
-
-- Verify TMDb API key is valid.
-- Check internet connectivity.
-- Enable **Enable Search Interception** in config.
-
-### Library population not working
-
-- Check TMDb API key configuration.
-- Verify library paths exist and are in Jellyfin.
-- Check logs for specific error messages.
-- Ensure at least one library path is configured.
-
-### Streams not playing
-
-- Verify addon manifest URL is correct.
-- Check Jellyfin FFmpeg configuration.
-- Ensure Debrid is authorized in your plugin.
-- Check Jellyfin logs for stream resolution errors.
-- For Jellyfin 10.11.6: Ensure you're using version 1.0.0.11 or later which includes compatibility fixes.
-
-### Plugin fails to load in Jellyfin 10.11.6
-
-- Ensure you're using version 1.0.0.11 or later of this fork.
-- The original plugin may not work with Jellyfin 10.11.6 due to interface changes.
-- Check Jellyfin logs for "does not have an implementation" errors - this indicates you need the updated version.
-
-## Contributing
-
-Contributions are welcome! Please:
-
-1. Fork the repository.
-2. Create a feature branch.
-3. Commit changes.
-4. Push to branch.
-5. Open a Pull Request.
-
-## Acknowledgments
-
-- This plugin was only possible after going through [Gelato](https://github.com/lostb1t/Gelato). Big thanks to [lostb1t](https://github.com/lostb1t).
-- My old project [jf-resolve](https://github.com/vicking20/jf-resolve).
-- Jellyfin project for the media server.
-- TMDB for metadata.
-- Stremio for addon ecosystem.
-- All users.
-
-## Support
-
-- **Issues**: Report bugs on [GitHub Issues](../../issues).
-- **Discussions**: Ask questions in [GitHub Discussions](../../discussions).
-- **Jellyfin Forum**: Check the [Jellyfin Community](https://jellyfin.org/docs/general/community/).
+- [Gelato](https://github.com/lostb1t/Gelato) by lostb1t, which this plugin is based on
+- [jf-resolve](https://github.com/vicking20/jf-resolve)
+- Jellyfin, TMDB and the Stremio addon ecosystem
 
 ## Disclaimer
 
-This project is intended for **educational purposes only**. It was developed to learn more about the c# language and understand how to inject custom results when a user does a search in Jellyfin using Dto's. While it was a fun experiment, it is provided as-is, and others are welcome to modify or use it for their own educational purposes at their risk.
+Educational project. Provided as-is; use at your own risk.

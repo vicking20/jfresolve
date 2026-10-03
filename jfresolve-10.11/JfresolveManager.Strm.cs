@@ -10,17 +10,10 @@ using Microsoft.Extensions.Logging;
 
 namespace Jfresolve;
 
-/// <summary>
-/// STRM file mode: instead of inserting items into Jellyfin's database, write .strm files
-/// into the library folder and let Jellyfin's scanner pick them up as regular items.
-/// Each .strm holds the plugin's resolve URL, so the stream is still resolved at playback time.
-/// </summary>
+/// <summary>STRM mode: writes .strm files with the resolve URL instead of inserting items into the database.</summary>
 public partial class JfresolveManager
 {
-    /// <summary>
-    /// Marker file written into every folder the plugin creates. Lets the update and purge
-    /// tasks find (and only touch) plugin-owned folders. Content: "movie:{tmdbId}:{imdbId}" or "tv:{tmdbId}:{imdbId}".
-    /// </summary>
+    /// <summary>Marks plugin-owned folders for the update and purge tasks. Content: "movie|tv:{tmdbId}:{imdbId}".</summary>
     public const string StrmMarkerFileName = ".jfresolve";
 
     public bool IsStrmMode => JfresolvePlugin.Instance?.Configuration.WriteStrmFiles == true;
@@ -56,9 +49,6 @@ public partial class JfresolveManager
         return url;
     }
 
-    /// <summary>
-    /// Writes .strm files for a movie or series. Returns true if any new file was written.
-    /// </summary>
     public async Task<bool> WriteStrmFilesAsync(Folder parent, object metadata, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(parent.Path))
@@ -96,8 +86,7 @@ public partial class JfresolveManager
         var fileBase = Path.GetFileName(dir);
         var written = false;
 
-        // Same versioning as database mode: first version is the clean "auto" one, the rest are tagged.
-        // Jellyfin groups "<folder name> - <label>.strm" files in one folder as versions of the same movie.
+        // First file is the clean "auto" version; Jellyfin groups "<folder> - <label>.strm" as versions
         var tasks = GetEnabledVersioningTasks();
         for (var i = 0; i < tasks.Count; i++)
         {
@@ -118,10 +107,7 @@ public partial class JfresolveManager
         return written;
     }
 
-    /// <summary>
-    /// Writes one .strm per aired episode. Already-existing files are left alone, so this also
-    /// serves as the "check for new episodes" path. Returns the number of new files written.
-    /// </summary>
+    /// <summary>Writes one .strm per aired episode. Returns the number of new files.</summary>
     public async Task<int> WriteSeriesStrmAsync(string libraryPath, int tmdbId, string? imdbId, string name, int? year, CancellationToken ct)
     {
         var config = JfresolvePlugin.Instance?.Configuration;
@@ -181,10 +167,7 @@ public partial class JfresolveManager
         return written;
     }
 
-    /// <summary>
-    /// Re-syncs every plugin-written series folder: adds .strm files for newly aired episodes
-    /// and rewrites existing ones if the server URL changed. Returns the number of files written.
-    /// </summary>
+    /// <summary>Adds newly aired episodes and rewrites URLs if the server URL changed. Returns the number of files written.</summary>
     public async Task<int> UpdateStrmSeriesAsync(CancellationToken ct)
     {
         var total = 0;
@@ -227,9 +210,7 @@ public partial class JfresolveManager
         return total;
     }
 
-    /// <summary>
-    /// Deletes every folder the plugin wrote (identified by the marker file). Returns the number deleted.
-    /// </summary>
+    /// <summary>Deletes every folder that has the marker file.</summary>
     public int PurgeStrmFolders()
     {
         var deleted = 0;
@@ -248,9 +229,6 @@ public partial class JfresolveManager
         return deleted;
     }
 
-    /// <summary>
-    /// Queues a Jellyfin library scan so newly written .strm files show up.
-    /// </summary>
     public void QueueStrmScan()
     {
         _libraryManager.QueueLibraryScan();
