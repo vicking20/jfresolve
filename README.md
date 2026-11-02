@@ -33,7 +33,7 @@ Prefer a standalone web app instead of a plugin? See [jf-resolve](https://github
 
 ## Requirements
 
-- Jellyfin 10.11.6 or later
+- Jellyfin 12.4.0 or later
 - TMDB API key ([get one here](https://www.themoviedb.org/settings/api))
 - A Stremio addon manifest URL with your debrid key configured
 
@@ -92,7 +92,7 @@ Each item's path is a plugin URL such as `/Plugins/Jfresolve/resolve/movie/tt123
 ## Troubleshooting
 
 **Plugin shows as "Unsupported"**
-Update Jellyfin to 10.11.6 or later, then reinstall the latest version.
+Update Jellyfin to 12.4.0 or later, then reinstall the latest version.
 
 **Populate task does nothing or fails to create items**
 The library folder must exist, be writable and have been scanned at least once. Docker volumes mounted `:ro` won't work.
@@ -112,11 +112,11 @@ Update to 1.0.0.14 or later, which resumes dropped connections.
 ## Building
 
 ```bash
-cd jfresolve-10.11
+cd jfresolve-12.x
 dotnet build -c Release
 ```
 
-Output: `jfresolve-10.11/bin/Release/net9.0/Jfresolve.dll`
+Output: `jfresolve-12.x/bin/Release/net9.0/Jfresolve.dll`
 
 ## Credits
 

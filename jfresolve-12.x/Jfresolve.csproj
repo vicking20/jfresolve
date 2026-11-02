@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>Jfresolve</AssemblyName>
@@ -12,9 +12,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Jellyfin.Model" Version="10.11.6" />
-    <PackageReference Include="Jellyfin.Controller" Version="10.11.6" />
-    <PackageReference Include="Jellyfin.Common" Version="10.11.6" />
+    <PackageReference Include="Jellyfin.Model" Version="12.4.0" />
+    <PackageReference Include="Jellyfin.Controller" Version="12.4.0" />
+    <PackageReference Include="Jellyfin.Common" Version="12.4.0" />
   </ItemGroup>
 
   <ItemGroup>
