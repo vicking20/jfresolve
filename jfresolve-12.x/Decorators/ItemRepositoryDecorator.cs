@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using Jellyfin.Data.Enums;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Persistence;
+using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Querying;
 using Microsoft.AspNetCore.Http;
 
@@ -63,15 +64,8 @@ public sealed class JfresolveItemRepository : IItemRepository
         return filter;
     }
 
-    public void DeleteItem(params IReadOnlyList<Guid> ids) => _inner.DeleteItem(ids);
-    public void SaveItems(IReadOnlyList<BaseItem> items, System.Threading.CancellationToken cancellationToken) => _inner.SaveItems(items, cancellationToken);
-    public void SaveImages(BaseItem item) => _inner.SaveImages(item);
     public BaseItem RetrieveItem(Guid id) => _inner.RetrieveItem(id);
     public IReadOnlyList<BaseItem> GetLatestItemList(InternalItemsQuery filter, CollectionType collectionType) => _inner.GetLatestItemList(filter, collectionType);
-    public IReadOnlyList<string> GetNextUpSeriesKeys(InternalItemsQuery filter, DateTime dateCutoff) => _inner.GetNextUpSeriesKeys(filter, dateCutoff);
-    public void UpdateInheritedValues() => _inner.UpdateInheritedValues();
-    public int GetCount(InternalItemsQuery filter) => _inner.GetCount(filter);
-    public MediaBrowser.Model.Dto.ItemCounts GetItemCounts(InternalItemsQuery filter) => _inner.GetItemCounts(filter);
     public QueryResult<(BaseItem Item, MediaBrowser.Model.Dto.ItemCounts ItemCounts)> GetGenres(InternalItemsQuery filter) => _inner.GetGenres(filter);
     public QueryResult<(BaseItem Item, MediaBrowser.Model.Dto.ItemCounts ItemCounts)> GetMusicGenres(InternalItemsQuery filter) => _inner.GetMusicGenres(filter);
     public QueryResult<(BaseItem Item, MediaBrowser.Model.Dto.ItemCounts ItemCounts)> GetStudios(InternalItemsQuery filter) => _inner.GetStudios(filter);
@@ -82,14 +76,11 @@ public sealed class JfresolveItemRepository : IItemRepository
     public IReadOnlyList<string> GetStudioNames() => _inner.GetStudioNames();
     public IReadOnlyList<string> GetGenreNames() => _inner.GetGenreNames();
     public IReadOnlyList<string> GetAllArtistNames() => _inner.GetAllArtistNames();
+    public IReadOnlyList<string> GetMediaStreamLanguages(InternalItemsQuery filter, MediaStreamType mediaStreamType) => _inner.GetMediaStreamLanguages(filter, mediaStreamType);
+    public IReadOnlyList<string> GetTagNames(InternalItemsQuery filter) => _inner.GetTagNames(filter);
+    public QueryFiltersLegacy GetQueryFiltersLegacy(InternalItemsQuery filter) => _inner.GetQueryFiltersLegacy(filter);
     public System.Threading.Tasks.Task<bool> ItemExistsAsync(Guid id) => _inner.ItemExistsAsync(id);
     public bool GetIsPlayed(Jellyfin.Database.Implementations.Entities.User user, Guid id, bool recursive) => _inner.GetIsPlayed(user, id, recursive);
-    public IReadOnlyDictionary<string, MediaBrowser.Controller.Entities.Audio.MusicArtist[]> FindArtists(IReadOnlyList<string> artistNames) => _inner.FindArtists(artistNames);
-    
-    public Task ReattachUserDataAsync(BaseItem item, CancellationToken cancellationToken)
-    {
-        return _inner.ReattachUserDataAsync(item, cancellationToken);
-    }
 }
 
 public static class HttpContextExtensions

@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/vicking20/jfresolve/main/jfresolve.png",
     "versions": [
       {
+        "version": "1.0.0.15",
+        "changelog": "Support for Jellyfin 12.4 (built on .NET 10). Fixes the plugin showing as Unsupported with a TypeLoadException (GetMediaStreamLanguages) on 12.x. Jellyfin 10.11 users stay on 1.0.0.14. Requires Jellyfin 12.4+.",
+        "sourceUrl": "https://github.com/vicking20/jfresolve/releases/download/12.4.1.0.0.15/jfresolve.zip",
+        "checksum": "72c1d54693fe0721045770834a650c95",
+        "targetAbi": "12.4.0.0",
+        "timestamp": "2026-11-02T12:00:00Z"
+      },
+      {
         "version": "1.0.0.14",
         "changelog": "Fixed auto-population hanging indefinitely (series lock was never released). Streams now resume automatically when the debrid host drops the connection (fixes 4K remux playback failures). Preferred quality is now a ceiling: falls back to the next lower quality instead of jumping to 4K. Added optional .strm file mode for third-party clients like Infuse. Clearer logging for 403 errors from the addon or stream host. Requires Jellyfin 10.11.6+.",
         "sourceUrl": "https://github.com/vicking20/jfresolve/releases/download/10.11.1.0.0.14/jfresolve.zip",

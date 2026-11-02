@@ -90,3 +90,6 @@ PLUGIN_DOCUMENTATION.md
 
 Backups
 *.backups_hidden
+
+# Local Jellyfin test server
+dev/
