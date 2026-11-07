@@ -134,53 +134,75 @@ public class JfresolveApiController : ControllerBase
                 return NotFound("No suitable stream found");
             }
 
-            if (!selectedStream.Value.TryGetProperty("url", out var urlProperty))
+            // The addon can return a stream whose own resolve link is broken (e.g. Torrentio embeds a
+            // literal "null" file index for some single-file torrents, which its resolve endpoint then
+            // 404s on). Previously that one bad candidate failed the whole request even though other,
+            // working releases were already sitting in the same response. Try the picked stream first,
+            // then fall back through the rest before giving up.
+            var candidates = BuildCandidateOrder(selectedStream.Value, streams.EnumerateArray().ToList());
+            var attemptsToTry = Math.Min(candidates.Count, MaxCandidateAttempts);
+
+            Exception? lastError = null;
+            for (var attempt = 0; attempt < attemptsToTry; attempt++)
             {
-                _logger.LogWarning("Jfresolve: No URL property in stream response");
-                return NotFound("No stream URL available in response");
+                var candidate = candidates[attempt];
+
+                if (!candidate.TryGetProperty("url", out var urlProperty))
+                {
+                    _logger.LogWarning("Jfresolve: Candidate {Attempt}/{Total} has no URL property, skipping", attempt + 1, attemptsToTry);
+                    continue;
+                }
+
+                var redirectUrl = urlProperty.GetString();
+                if (string.IsNullOrWhiteSpace(redirectUrl) || !Uri.IsWellFormedUriString(redirectUrl, UriKind.Absolute))
+                {
+                    _logger.LogWarning("Jfresolve: Candidate {Attempt}/{Total} has an empty or malformed URL, skipping", attempt + 1, attemptsToTry);
+                    continue;
+                }
+
+                if (attempt == 0)
+                {
+                    _logger.LogInformation("Jfresolve: Resolved {Type}/{Id} to {RedirectUrl}", type, id, redirectUrl);
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "Jfresolve: Falling back to candidate {Attempt}/{Total} for {Type}/{Id} after previous failure: {RedirectUrl}",
+                        attempt + 1, attemptsToTry, type, id, redirectUrl);
+                }
+
+                // Proxied rather than redirected: FFmpeg in 10.11.6 doesn't follow redirects from plugin endpoints
+                // FFmpeg needs Range (206) support for seeking
+                try
+                {
+                    _logger.LogInformation("Jfresolve: Proxying stream from {RedirectUrl}", redirectUrl);
+                    await ProxyStreamAsync(redirectUrl, HttpContext.RequestAborted);
+                    return new EmptyResult();
+                }
+                catch (OperationCanceledException) when (HttpContext.RequestAborted.IsCancellationRequested)
+                {
+                    // Client went away (seek or stop)
+                    _logger.LogDebug("Jfresolve: Client closed stream for {Type}/{Id}", type, id);
+                    return new EmptyResult();
+                }
+                catch (Exception ex) when (Response.HasStarted)
+                {
+                    // Status code can't change once bytes are sent, so this candidate can't be swapped out either
+                    _logger.LogWarning(ex, "Jfresolve: Stream for {Type}/{Id} ended early after retries", type, id);
+                    HttpContext.Abort();
+                    return new EmptyResult();
+                }
+                catch (HttpRequestException ex)
+                {
+                    lastError = ex;
+                    _logger.LogWarning(
+                        ex, "Jfresolve: Candidate {Attempt}/{Total} failed to resolve ({RedirectUrl}), trying next candidate if available",
+                        attempt + 1, attemptsToTry, redirectUrl);
+                }
             }
 
-            var redirectUrl = urlProperty.GetString();
-            if (string.IsNullOrWhiteSpace(redirectUrl))
-            {
-                _logger.LogWarning("Jfresolve: Empty stream URL received");
-                return NotFound("Empty stream URL received");
-            }
-
-            _logger.LogInformation("Jfresolve: Resolved {Type}/{Id} to {RedirectUrl}", type, id, redirectUrl);
-
-            if (!Uri.IsWellFormedUriString(redirectUrl, UriKind.Absolute))
-            {
-                _logger.LogWarning("Jfresolve: Redirect URL is not absolute: {RedirectUrl}", redirectUrl);
-                return BadRequest("Invalid redirect URL format");
-            }
-
-            // Proxied rather than redirected: FFmpeg in 10.11.6 doesn't follow redirects from plugin endpoints
-            // FFmpeg needs Range (206) support for seeking
-            try
-            {
-                _logger.LogInformation("Jfresolve: Proxying stream from {RedirectUrl}", redirectUrl);
-                await ProxyStreamAsync(redirectUrl, HttpContext.RequestAborted);
-                return new EmptyResult();
-            }
-            catch (OperationCanceledException) when (HttpContext.RequestAborted.IsCancellationRequested)
-            {
-                // Client went away (seek or stop)
-                _logger.LogDebug("Jfresolve: Client closed stream for {Type}/{Id}", type, id);
-                return new EmptyResult();
-            }
-            catch (Exception ex) when (Response.HasStarted)
-            {
-                // Status code can't change once bytes are sent
-                _logger.LogWarning(ex, "Jfresolve: Stream for {Type}/{Id} ended early after retries", type, id);
-                HttpContext.Abort();
-                return new EmptyResult();
-            }
-            catch (HttpRequestException ex)
-            {
-                _logger.LogError(ex, "Jfresolve: Error proxying stream from {RedirectUrl}", redirectUrl);
-                return StatusCode(502, $"Error proxying stream: {ex.Message}");
-            }
+            _logger.LogError(lastError, "Jfresolve: All {Count} stream candidate(s) failed to resolve for {Type}/{Id}", attemptsToTry, type, id);
+            return StatusCode(502, "All available stream candidates failed to resolve");
         }
         catch (HttpRequestException ex)
         {
@@ -200,6 +222,24 @@ public class JfresolveApiController : ControllerBase
     }
 
     private const int MaxStreamResumeAttempts = 5;
+    private const int MaxCandidateAttempts = 4;
+
+    /// <summary>Orders streams starting with the already-picked one, then the rest in their original order as fallbacks.</summary>
+    internal static System.Collections.Generic.List<JsonElement> BuildCandidateOrder(JsonElement primary, System.Collections.Generic.List<JsonElement> allStreams)
+    {
+        var ordered = new System.Collections.Generic.List<JsonElement> { primary };
+        var primaryRaw = primary.GetRawText();
+
+        foreach (var stream in allStreams)
+        {
+            if (stream.GetRawText() != primaryRaw)
+            {
+                ordered.Add(stream);
+            }
+        }
+
+        return ordered;
+    }
 
     /// <summary>Proxies the upstream stream, honouring Range. Debrid hosts often reset long connections on high-bitrate files, so on a drop it reconnects from the last byte sent.</summary>
     private async Task ProxyStreamAsync(string url, CancellationToken clientAborted)
